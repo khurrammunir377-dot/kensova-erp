@@ -1,0 +1,130 @@
+{% extends "store_app/base.html" %}
+{% block content %}
+<div class="space-y-4">
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-5">
+        <div class="lg:col-span-4 bg-white border-2 border-slate-200 rounded-2xl p-5 shadow-xs h-fit">
+            <h2 class="text-xs font-black uppercase text-slate-950 mb-3 flex items-center">
+                <i class="fa-solid fa-handshake text-blue-600 mr-1.5"></i> Register Vendor Partner
+            </h2>
+            <form method="POST" class="space-y-2.5">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="create">
+                <div>
+                    <label class="block text-xs font-black uppercase text-slate-900 mb-1">Supplier Code</label>
+                    <input type="text" name="supplier_code" required placeholder="e.g. SUP-004" class="input-3d-bevel-large w-full rounded-2xl px-3.5 py-1.5 text-xs text-slate-950 font-black font-mono">
+                </div>
+                <div>
+                    <label class="block text-xs font-black uppercase text-slate-900 mb-1">Company Name</label>
+                    <input type="text" name="company_name" required placeholder="Vendor LLC" class="input-3d-bevel-large w-full rounded-2xl px-3.5 py-2 text-xs text-slate-950 font-bold">
+                </div>
+                <div>
+                    <label class="block text-xs font-black uppercase text-slate-900 mb-1">Contact Person</label>
+                    <input type="text" name="contact_person" placeholder="Manager Name" class="input-3d-bevel-large w-full rounded-2xl px-3.5 py-1.5 text-xs">
+                </div>
+                <div class="grid grid-cols-2 gap-2">
+                    <div>
+                        <label class="block text-xs font-black uppercase text-slate-900 mb-1">Phone</label>
+                        <input type="text" name="phone" placeholder="+971 4 ..." class="input-3d-bevel-large w-full rounded-2xl px-3.5 py-1.5 text-xs font-mono">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-black uppercase text-slate-900 mb-1">Email</label>
+                        <input type="email" name="email" placeholder="sales@vendor.ae" class="input-3d-bevel-large w-full rounded-2xl px-3.5 py-1.5 text-xs">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-xs font-black uppercase text-slate-900 mb-1">Warehouse / Office Address</label>
+                    <textarea name="address" rows="2" placeholder="Industrial Area, Dubai, UAE..." class="input-3d-bevel-large w-full rounded-2xl p-2.5 text-xs text-slate-950 font-bold focus:outline-none"></textarea>
+                </div>
+                <button type="submit" class="btn-3d-emerald w-full py-3 text-white font-black text-xs uppercase rounded-xl cursor-pointer">Save Supplier</button>
+            </form>
+        </div>
+
+        <div class="lg:col-span-8">
+            <div class="bg-white border-2 border-slate-200 rounded-2xl overflow-hidden shadow-xs">
+                <table class="w-full text-left text-xs text-slate-900">
+                    <thead class="bg-slate-100 text-[11px] uppercase tracking-wider text-slate-800 font-black border-b-2 border-slate-300">
+                        <tr><th class="px-4 py-3">Code</th><th class="px-4 py-3">Company (Click Row to Edit)</th><th class="px-4 py-3">Contact</th><th class="px-4 py-3">Address Location</th></tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-200 font-bold">
+                        {% for s in suppliers %}
+                        <tr onclick="openEditSup('{{ s.supplier_code|escapejs }}','{{ s.company_name|escapejs }}','{{ s.contact_person|default:''|escapejs }}','{{ s.phone|default:''|escapejs }}','{{ s.email|default:''|escapejs }}','{{ s.address|default:''|escapejs }}')" class="hover:bg-emerald-50/50 transition cursor-pointer">
+                            <td class="px-4 py-3 font-mono font-black text-blue-800">{{ s.supplier_code }}</td>
+                            <td class="px-4 py-3">
+                                <span class="font-black text-slate-950 block">{{ s.company_name }}</span>
+                                <small class="font-mono text-emerald-800">{{ s.email|default:"No email" }}</small>
+                            </td>
+                            <td class="px-4 py-3">
+                                <span class="text-slate-800">{{ s.contact_person|default:"—" }}</span>
+                                <small class="block font-mono text-slate-500">{{ s.phone|default:"—" }}</small>
+                            </td>
+                            <td class="px-4 py-3 text-slate-700 font-medium">{{ s.address|default:"Dubai, UAE" }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="editSupModal" class="hidden fixed inset-0 bg-slate-950/60 backdrop-blur-sm z-50 flex items-center justify-center p-6">
+    <div class="bg-white rounded-3xl max-w-md w-full p-7 border-2 border-slate-300 shadow-2xl">
+        <div class="flex items-center justify-between pb-3 border-b-2 border-slate-100 mb-5">
+            <h3 class="text-sm font-black uppercase text-slate-950">Edit Supplier Details</h3>
+            <button type="button" onclick="document.getElementById('editSupModal').classList.add('hidden')" class="text-slate-400 hover:text-slate-800 text-xl font-black">&times;</button>
+        </div>
+        <form method="POST" class="space-y-3.5">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="edit">
+            <div>
+                <label class="block text-xs font-bold text-slate-800 mb-1">Supplier Code</label>
+                <input type="text" name="supplier_code" id="editSupCode" readonly class="input-3d-bevel-large w-full bg-slate-200 rounded-xl px-3 py-2 text-xs font-mono font-black">
+            </div>
+            <div>
+                <label class="block text-xs font-bold text-slate-800 mb-1">Company Name</label>
+                <input type="text" name="company_name" id="editSupName" required class="input-3d-bevel-large w-full rounded-xl px-3 py-2 text-xs font-bold">
+            </div>
+            <div>
+                <label class="block text-xs font-bold text-slate-800 mb-1">Contact Person</label>
+                <input type="text" name="contact_person" id="editSupContact" class="input-3d-bevel-large w-full rounded-xl px-3 py-2 text-xs font-bold">
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="block text-xs font-bold text-slate-800 mb-1">Phone</label>
+                    <input type="text" name="phone" id="editSupPhone" class="input-3d-bevel-large w-full rounded-xl px-3 py-2 text-xs font-mono">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-800 mb-1">Email</label>
+                    <input type="email" name="email" id="editSupEmail" class="input-3d-bevel-large w-full rounded-xl px-3 py-2 text-xs font-bold">
+                </div>
+            </div>
+            <div>
+                <label class="block text-xs font-bold text-slate-800 mb-1">Address</label>
+                <textarea name="address" id="editSupAddress" rows="2" class="input-3d-bevel-large w-full rounded-xl p-2 text-xs font-bold"></textarea>
+            </div>
+            <div class="flex items-center justify-between space-x-2 pt-4 border-t">
+                <button type="button" onclick="deleteCurrentSupplier()" class="btn-3d-rose px-4 py-2 rounded-xl text-xs font-black">Delete</button>
+                <div class="space-x-2">
+                <button type="button" onclick="document.getElementById('editSupModal').classList.add('hidden')" class="btn-3d-slate px-4 py-2 rounded-xl text-xs font-black">Cancel</button>
+                <button type="submit" class="btn-3d-emerald px-6 py-2 rounded-xl text-xs font-black shadow-md cursor-pointer">Save Changes</button>
+                </div>
+            </div>
+        </form>
+        <form id="deleteSupForm" method="POST" class="hidden">{% csrf_token %}<input type="hidden" name="action" value="delete"><input type="hidden" name="supplier_code" id="deleteSupCode"></form>
+    </div>
+</div>
+
+<script>
+    function openEditSup(code, name, contact, phone, email, addr) {
+        document.getElementById('editSupCode').value = code;
+        document.getElementById('deleteSupCode').value = code;
+        document.getElementById('editSupName').value = name;
+        document.getElementById('editSupContact').value = contact;
+        document.getElementById('editSupPhone').value = phone;
+        document.getElementById('editSupEmail').value = email;
+        document.getElementById('editSupAddress').value = addr;
+        document.getElementById('editSupModal').classList.remove('hidden');
+    }
+    function deleteCurrentSupplier() { if (confirm('Delete this supplier?')) document.getElementById('deleteSupForm').submit(); }
+</script>
+{% endblock %}

@@ -1,0 +1,97 @@
+{% extends "store_app/base.html" %}
+{% block content %}
+<div class="operational-page-grid grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch h-full">
+    <div class="operational-entry-panel lg:col-span-6 bg-white border-2 border-indigo-200/80 rounded-3xl p-6 shadow-sm flex flex-col justify-between">
+        <div>
+            <div class="operational-section-header flex items-center justify-between bg-gradient-to-r from-indigo-50 to-blue-50 border border-indigo-200/80 p-3 rounded-2xl mb-5">
+                <span class="form-panel-title text-indigo-950 flex items-center">
+                    <i class="fa-solid fa-rotate-left mr-2 text-indigo-600 text-xl"></i> Site Surplus Return Form
+                </span>
+            </div>
+
+            <form method="POST" class="operational-form space-y-4">
+                {% csrf_token %}
+                <div>
+                    <label class="block text-xs font-black uppercase tracking-wider text-slate-950 mb-1.5">Select Material</label>
+                    <select name="material_code" required class="searchable-select input-3d-bevel-large w-full rounded-2xl px-4 py-2.5 text-xs text-slate-950 font-bold focus:outline-none focus:border-indigo-600 font-mono">
+                        <option value="" disabled selected>-- Choose Material to Return --</option>
+                        {% for mat in materials %}
+                        <option value="{{ mat.material_code }}">{{ mat.material_code }} — {{ mat.description }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="form-pair-grid grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-black uppercase tracking-wider text-slate-950 mb-1.5">Quantity Returned</label>
+                        <input type="number" step="1" min="1" name="quantity" required placeholder="e.g. 5" 
+                               class="input-3d-bevel-large w-full rounded-2xl px-4 py-2.5 text-xs text-slate-950 font-bold focus:outline-none focus:border-indigo-600 font-mono">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-black uppercase tracking-wider text-slate-950 mb-1.5">From Project Site</label>
+                        <select name="project_code" required class="searchable-select input-3d-bevel-large w-full rounded-2xl px-4 py-2.5 text-xs text-slate-950 font-bold focus:outline-none">
+                            <option value="" disabled {% if not selected_project %}selected{% endif %}>-- Select Site --</option>
+                            {% for prj in projects %}
+                            <option value="{{ prj.project_code }}" {% if selected_project == prj.project_code %}selected{% endif %}>{{ prj.project_code }} — {{ prj.project_name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-black uppercase tracking-wider text-slate-950 mb-1.5">Returned By Staff Member</label>
+                    <select name="staff_no" required onchange="document.getElementById('matReturnedByInput').value = this.options[this.selectedIndex].getAttribute('data-formatted') || '';" class="searchable-select input-3d-bevel-large w-full rounded-2xl px-4 py-2.5 text-xs text-slate-950 font-bold focus:outline-none font-mono">
+                        <option value="" disabled {% if not selected_staff %}selected{% endif %}>-- Choose Staff Technician --</option>
+                        {% for staff in staff_list %}
+                        <option value="{{ staff.staff_no }}" data-formatted="{{ staff.formatted_name }}" {% if selected_staff == staff.staff_no %}selected{% endif %}>
+                            {{ staff.staff_no }} — {{ staff.name }} ({{ staff.designation }})
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div>
+                        <label class="block text-xs font-black uppercase tracking-wider text-slate-950 mb-1.5">Returned By</label>
+                        <input type="text" name="returned_by" id="matReturnedByInput" placeholder="UUDS-804, Name" required class="custodian-field input-3d-bevel-large w-full rounded-2xl px-4 py-2.5 text-xs font-bold focus:outline-none font-mono">
+                </div>
+                <div>
+                        <label class="block text-xs font-black uppercase tracking-wider text-slate-950 mb-1.5">Received By (Store Custodian)</label>
+                        <input type="text" name="received_by_store" value="{{ current_custodian }}" required class="custodian-field input-3d-bevel-large w-full rounded-2xl px-4 py-2.5 text-xs font-bold focus:outline-none font-mono">
+                </div>
+
+                <div class="form-submit-row pt-3 border-t-2 border-slate-100 flex justify-end">
+                    <button type="submit" class="btn-3d-indigo w-full py-3.5 text-white font-black uppercase text-xs tracking-wider rounded-2xl shadow-md cursor-pointer">
+                        Restock & Accept into Store F20
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="recent-panel lg:col-span-6 bg-white border-2 border-slate-200 rounded-3xl p-6 shadow-xs flex flex-col justify-between">
+        <div>
+            <div class="recent-section-header flex items-center justify-between bg-slate-50 border border-slate-200/80 p-3 rounded-2xl mb-4">
+                <h3 class="text-xs font-black uppercase tracking-wider text-slate-900 flex items-center">
+                    <i class="fa-solid fa-rotate-left text-indigo-600 mr-2"></i> Recent Material Restock Logs
+                </h3>
+                <a href="{% url 'reports_hub' %}?tab=materialreturns" class="recent-report-btn"><i class="fa-solid fa-table-list"></i> Return Report</a>
+            </div>
+            <div class="recent-list">
+                {% for r in recent_returns %}
+                <div class="recent-row flex items-center justify-between text-xs">
+                    <div>
+                        <span class="font-mono font-black text-slate-950 bg-slate-100 px-2.5 py-1 rounded-xl border border-slate-300">{{ r.material.material_code }}</span>
+                        <span class="font-black text-slate-950 ml-2">{{ r.material.description }}</span>
+                        <p class="text-[11px] text-slate-600 font-bold mt-1">Qty: +{{ r.quantity }} {{ r.material.unit|upper }} &bull; Project: {{ r.project.project_name }}</p>
+                        <p class="text-[11px] text-slate-500 font-bold mt-1"><span class="recent-label-returned">Returned by:</span> <span class="font-black text-purple-700">{{ r.received_by|default:"—" }}</span> &bull; <span class="recent-label-received">Received by:</span> <span class="font-black text-blue-700">{{ r.issued_by }}</span></p>
+                    </div>
+                    <span class="recent-time font-mono">{{ r.date|date:"d-M-Y H:i" }}</span>
+                </div>
+                {% empty %}
+                <p class="py-8 text-center text-xs text-slate-400 font-bold">No material returns logged.</p>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,24 @@
+﻿KENSOVA ERP - VERCEL DEPLOYMENT NOTES
+=====================================
+
+This folder is the Vercel deployment copy of the extracted Kensova ERP.
+
+IMPORTANT:
+- The original local SQLite database is backed up in _local_backup\db.sqlite3
+- db.sqlite3 is intentionally excluded from Git.
+- Local Windows ERP can continue using SQLite.
+- Online Vercel deployment will use PostgreSQL through DATABASE_URL.
+- Outlook/pywin32 email is intentionally NOT configured for Vercel yet.
+- Email will be configured later.
+
+NEXT STEPS:
+1. Review the generated settings.py changes.
+2. Test the application locally.
+3. Create PostgreSQL (Neon recommended).
+4. Configure DATABASE_URL on Vercel.
+5. Migrate existing SQLite data into PostgreSQL.
+6. Push the production source to GitHub.
+7. Deploy to Vercel.
+8. Configure email and 7 PM reports later.
+
+DO NOT delete _local_backup\db.sqlite3 until the PostgreSQL migration has been verified.

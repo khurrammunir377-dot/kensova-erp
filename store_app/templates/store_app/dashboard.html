@@ -1,0 +1,371 @@
+{% extends "store_app/base.html" %}
+{% block content %}
+<div class="h-full flex flex-col justify-between gap-4 select-none">
+
+    <style>
+        /* Card Hover, 3D Elevation & Color-Coded Glows */
+        .glow-card {
+            transition: all 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .glow-card:hover {
+            transform: translateY(-4px) scale(1.01);
+        }
+        .glow-emerald:hover {
+            box-shadow: 0 16px 32px -4px rgba(16, 185, 129, 0.35), 0 0 0 2px #10b981;
+        }
+        .glow-amber:hover {
+            box-shadow: 0 16px 32px -4px rgba(245, 158, 11, 0.35), 0 0 0 2px #f59e0b;
+        }
+        .glow-purple:hover {
+            box-shadow: 0 16px 32px -4px rgba(168, 85, 247, 0.35), 0 0 0 2px #a855f7;
+        }
+        .glow-teal:hover {
+            box-shadow: 0 16px 32px -4px rgba(20, 184, 166, 0.35), 0 0 0 2px #14b8a6;
+        }
+    </style>
+
+    <!-- KPI Summary Cards with Glow Effects -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 shrink-0">
+        <div class="glow-card glow-emerald bg-white border-2 border-emerald-300 p-4 rounded-2xl shadow-xs">
+            <div class="flex items-center justify-between text-slate-700">
+                <span class="text-xs font-black uppercase tracking-wider text-emerald-950">Total Tools</span>
+                <div class="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-800 flex items-center justify-center text-base font-bold"><i class="fa-solid fa-toolbox"></i></div>
+            </div>
+            <h3 class="text-3xl font-mono font-black text-slate-950 mt-1">{{ total_tools }}</h3>
+            <div class="flex items-center justify-between text-xs mt-2 pt-2 border-t border-emerald-100 font-bold">
+                <span class="text-emerald-700"><i class="fa-solid fa-circle-check mr-1"></i> {{ available_tools }} In Store F20</span>
+                <span class="text-slate-600">{{ maintenance_tools }} In Repair</span>
+            </div>
+        </div>
+
+        <div class="glow-card glow-amber bg-white border-2 border-amber-300 p-4 rounded-2xl shadow-xs">
+            <div class="flex items-center justify-between text-slate-700">
+                <span class="text-xs font-black uppercase tracking-wider text-amber-950">Tools on Site</span>
+                <div class="w-10 h-10 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center text-base font-bold"><i class="fa-solid fa-clock-rotate-left"></i></div>
+            </div>
+            <h3 class="text-3xl font-mono font-black text-amber-700 mt-1">{{ issued_tools }}</h3>
+            <div class="flex items-center justify-between text-xs mt-2 pt-2 border-t border-amber-100 font-bold">
+                <span class="{% if overdue_tools_count > 0 %}text-rose-700 font-black{% else %}text-slate-600{% endif %}">
+                    <i class="fa-solid fa-triangle-exclamation mr-1"></i> {{ overdue_tools_count }} Overdue
+                </span>
+                <a href="{% url 'tool_pending' %}" class="text-amber-800 hover:underline">View live &rarr;</a>
+            </div>
+        </div>
+
+        <div class="glow-card glow-purple bg-white border-2 border-purple-300 p-4 rounded-2xl shadow-xs">
+            <div class="flex items-center justify-between text-slate-700">
+                <span class="text-xs font-black uppercase tracking-wider text-purple-950">Materials Stock</span>
+                <div class="w-10 h-10 rounded-xl bg-purple-100 text-purple-800 flex items-center justify-center text-base font-bold"><i class="fa-solid fa-cubes"></i></div>
+            </div>
+            <h3 class="text-3xl font-mono font-black text-slate-950 mt-1">{{ total_materials }}</h3>
+            <div class="flex items-center justify-between text-xs mt-2 pt-2 border-t border-purple-100 font-bold">
+                <span class="text-purple-700"><i class="fa-solid fa-circle-exclamation mr-1"></i> {{ low_stock_materials }} Low Stock</span>
+                <a href="{% url 'reports_hub' %}?tab=materialstock" class="text-purple-800 hover:underline">Catalog &rarr;</a>
+            </div>
+        </div>
+
+        <div class="glow-card glow-teal bg-white border-2 border-teal-300 p-4 rounded-2xl shadow-xs">
+            <div class="flex items-center justify-between text-slate-700">
+                <span class="text-xs font-black uppercase tracking-wider text-teal-950">Active UAE Sites</span>
+                <div class="w-10 h-10 rounded-xl bg-teal-100 text-teal-800 flex items-center justify-center text-base font-bold"><i class="fa-solid fa-landmark"></i></div>
+            </div>
+            <h3 class="text-3xl font-mono font-black text-teal-700 mt-1">{{ active_projects }}</h3>
+            <div class="flex items-center justify-between text-xs mt-2 pt-2 border-t border-teal-100 font-bold">
+                <span class="text-slate-800">{{ total_staff }} Registered Staff</span>
+                <a href="{% url 'reports_hub' %}?tab=projects" class="text-teal-800 hover:underline">Sites &rarr;</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- 4 Multi-Graph Analytics Grid with Glow Hovers -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 shrink-0">
+        <div class="glow-card glow-emerald bg-white border-2 border-emerald-200 rounded-2xl p-4 shadow-xs flex flex-col justify-between">
+            <div class="flex items-center justify-between pb-2 border-b-2 border-slate-100">
+                <h2 class="font-extrabold text-slate-950 text-xs flex items-center">
+                    <i class="fa-solid fa-chart-pie text-emerald-600 mr-1.5"></i> Tool Custody Status
+                </h2>
+                <span class="text-[10px] font-mono text-slate-500 font-bold">RATIO</span>
+            </div>
+            <div class="relative h-40 flex items-center justify-center mt-1">
+                <canvas id="toolStatusChart"></canvas>
+            </div>
+        </div>
+
+        <div class="glow-card glow-teal bg-white border-2 border-teal-200 rounded-2xl p-4 shadow-xs flex flex-col justify-between">
+            <div class="flex items-center justify-between pb-2 border-b-2 border-slate-100">
+                <h2 class="font-extrabold text-slate-950 text-xs flex items-center">
+                    <i class="fa-solid fa-chart-column text-teal-600 mr-1.5"></i> Top Material Stock
+                </h2>
+                <span class="text-[10px] font-mono text-slate-500 font-bold">F20 QTY</span>
+            </div>
+            <div class="relative h-40 w-full mt-1">
+                <canvas id="materialStockChart"></canvas>
+            </div>
+        </div>
+
+        <div class="glow-card glow-amber bg-white border-2 border-amber-200 rounded-2xl p-4 shadow-xs flex flex-col justify-between">
+            <div class="flex items-center justify-between pb-2 border-b-2 border-slate-100">
+                <h2 class="font-extrabold text-slate-950 text-xs flex items-center">
+                    <i class="fa-solid fa-chart-area text-amber-600 mr-1.5"></i> Tool Site Allocation
+                </h2>
+                <span class="text-[10px] font-mono text-slate-500 font-bold">DISTRIBUTION</span>
+            </div>
+            <div class="relative h-40 flex items-center justify-center mt-1">
+                <canvas id="siteAllocationChart"></canvas>
+            </div>
+        </div>
+
+        <div class="glow-card glow-purple bg-white border-2 border-purple-200 rounded-2xl p-4 shadow-xs flex flex-col justify-between">
+            <div class="flex items-center justify-between pb-2 border-b-2 border-slate-100">
+                <h2 class="font-extrabold text-slate-950 text-xs flex items-center">
+                    <i class="fa-solid fa-arrow-trend-up text-purple-600 mr-1.5"></i> 7-Day Movements
+                </h2>
+                <span class="text-[10px] font-mono text-slate-500 font-bold">TREND</span>
+            </div>
+            <div class="relative h-40 w-full mt-1">
+                <canvas id="movementTrendChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- 30-Day Movement Timeline Charts with Glow Hovers -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 flex-1 min-h-[260px]">
+        <div class="glow-card glow-amber bg-white border-2 border-amber-200 hover:border-amber-400 p-4 rounded-2xl shadow-xs flex flex-col justify-between">
+            <div class="flex items-center justify-between pb-2 border-b-2 border-slate-100 mb-1">
+                <div class="flex items-center space-x-1.5">
+                    <i class="fa-solid fa-screwdriver-wrench text-amber-600 text-xs"></i>
+                    <h2 class="font-extrabold text-slate-950 text-xs">Daily Tool Issue vs Return Flow</h2>
+                </div>
+                <span class="text-[10px] font-mono text-slate-500 font-bold">DAILY TREND</span>
+            </div>
+            <div class="relative flex-1 w-full mt-2 min-h-[190px]">
+                <canvas id="dailyToolMovementChart"></canvas>
+            </div>
+        </div>
+
+        <div class="glow-card glow-teal bg-white border-2 border-teal-200 hover:border-teal-400 p-4 rounded-2xl shadow-xs flex flex-col justify-between">
+            <div class="flex items-center justify-between pb-2 border-b-2 border-slate-100 mb-1">
+                <div class="flex items-center space-x-1.5">
+                    <i class="fa-solid fa-boxes-stacked text-teal-600 text-xs"></i>
+                    <h2 class="font-extrabold text-slate-950 text-xs">Daily Material Issue vs Receipt (GRN)</h2>
+                </div>
+                <span class="text-[10px] font-mono text-slate-500 font-bold">DAILY TREND</span>
+            </div>
+            <div class="relative flex-1 w-full mt-2 min-h-[190px]">
+                <canvas id="dailyMaterialMovementChart"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        const ctxTool = document.getElementById('toolStatusChart').getContext('2d');
+        new Chart(ctxTool, {
+            type: 'doughnut',
+            data: {
+                labels: {{ tool_chart_labels_json|safe }},
+                datasets: [{
+                    data: {{ tool_chart_data_json|safe }},
+                    backgroundColor: ['#10b981', '#f59e0b', '#ef4444'],
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { position: 'bottom', labels: { boxWidth: 8, font: { size: 9, weight: 'bold' } } }
+                },
+                cutout: '70%'
+            }
+        });
+
+        const ctxMat = document.getElementById('materialStockChart').getContext('2d');
+        new Chart(ctxMat, {
+            type: 'bar',
+            data: {
+                labels: {{ mat_labels_json|safe }},
+                datasets: [{
+                    label: 'Units in F20',
+                    data: {{ mat_data_json|safe }},
+                    backgroundColor: '#0d9488',
+                    borderRadius: 4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    x: { ticks: { font: { size: 8, weight: 'bold' } } },
+                    y: { ticks: { font: { size: 8 } } }
+                }
+            }
+        });
+
+        const ctxSite = document.getElementById('siteAllocationChart').getContext('2d');
+        const sitePie3D = {
+            id: 'sitePie3D',
+            beforeDatasetDraw(chart, args) {
+                if (args.index !== 0) return;
+                const meta = chart.getDatasetMeta(0);
+                const c = chart.ctx;
+                c.save();
+                c.fillStyle = 'rgba(15,23,42,.20)';
+                meta.data.forEach(arc => {
+                    const p = arc.getProps(['x','y','startAngle','endAngle','innerRadius','outerRadius'], true);
+                    c.beginPath();
+                    c.moveTo(p.x, p.y + 8);
+                    c.arc(p.x, p.y + 8, p.outerRadius, p.startAngle, p.endAngle);
+                    c.closePath();
+                    c.fill();
+                });
+                c.restore();
+            }
+        };
+        new Chart(ctxSite, {
+            type: 'pie',
+            plugins: [sitePie3D],
+            data: {
+                labels: {{ site_labels_json|safe }},
+                datasets: [{
+                    data: {{ site_data_json|safe }},
+                    backgroundColor: ['#d97706', '#0284c7', '#059669', '#6366f1', '#ec4899'],
+                    borderColor: '#ffffff',
+                    borderWidth: 2,
+                    hoverOffset: 8
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                rotation: -70,
+                plugins: {
+                    legend: { position: 'bottom', labels: { boxWidth: 8, font: { size: 8, weight: 'bold' } } },
+                    tooltip: { enabled: true }
+                }
+            }
+        });
+
+        const ctxTrend = document.getElementById('movementTrendChart').getContext('2d');
+        new Chart(ctxTrend, {
+            type: 'line',
+            data: {
+                labels: {{ days_7_labels_json|safe }},
+                datasets: [
+                    {
+                        label: 'Inward (GRN)',
+                        data: {{ inward_7_trend_json|safe }},
+                        borderColor: '#059669',
+                        backgroundColor: '#059669',
+                        tension: 0.35,
+                        borderWidth: 2,
+                        pointRadius: 2.5
+                    },
+                    {
+                        label: 'Outward (Issued)',
+                        data: {{ outward_7_trend_json|safe }},
+                        borderColor: '#f59e0b',
+                        backgroundColor: '#f59e0b',
+                        tension: 0.35,
+                        borderWidth: 2,
+                        pointRadius: 2.5
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { position: 'bottom', labels: { boxWidth: 8, font: { size: 9, weight: 'bold' } } }
+                },
+                scales: {
+                    x: { ticks: { font: { size: 8, weight: 'bold' } } },
+                    y: { ticks: { font: { size: 8 } } }
+                }
+            }
+        });
+
+        const daysLabels = {{ past_30_days_labels_json|safe }};
+
+        const ctxToolDaily = document.getElementById('dailyToolMovementChart').getContext('2d');
+        new Chart(ctxToolDaily, {
+            type: 'line',
+            data: {
+                labels: daysLabels,
+                datasets: [
+                    {
+                        label: 'Issued to Site',
+                        data: {{ daily_tool_issues_json|safe }},
+                        borderColor: '#f59e0b',
+                        backgroundColor: 'rgba(245, 158, 11, 0.14)',
+                        fill: true,
+                        tension: 0.35,
+                        pointRadius: 2.5,
+                        borderWidth: 2
+                    },
+                    {
+                        label: 'Returned to F20',
+                        data: {{ daily_tool_returns_json|safe }},
+                        borderColor: '#10b981',
+                        backgroundColor: 'rgba(16, 185, 129, 0.14)',
+                        fill: true,
+                        tension: 0.35,
+                        pointRadius: 2.5,
+                        borderWidth: 2
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: { mode: 'index', intersect: false },
+                plugins: {
+                    legend: { position: 'top', labels: { boxWidth: 10, font: { size: 10, weight: 'bold' } } },
+                    tooltip: { padding: 8 }
+                },
+                scales: {
+                    x: { grid: { display: false }, ticks: { maxTicksLimit: 12, font: { size: 9, weight: 'bold' } } },
+                    y: { grid: { color: '#f1f5f9' }, ticks: { stepSize: 1, font: { size: 9 } } }
+                }
+            }
+        });
+
+        const ctxMatDaily = document.getElementById('dailyMaterialMovementChart').getContext('2d');
+        new Chart(ctxMatDaily, {
+            type: 'bar',
+            data: {
+                labels: daysLabels,
+                datasets: [
+                    {
+                        label: 'Material Received (GRN Qty)',
+                        data: {{ daily_mat_receipts_json|safe }},
+                        backgroundColor: '#0d9488',
+                        borderRadius: 3
+                    },
+                    {
+                        label: 'Material Issued (Qty)',
+                        data: {{ daily_mat_issues_json|safe }},
+                        backgroundColor: '#8b5cf6',
+                        borderRadius: 3
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: { mode: 'index', intersect: false },
+                plugins: {
+                    legend: { position: 'top', labels: { boxWidth: 10, font: { size: 10, weight: 'bold' } } },
+                    tooltip: { padding: 8 }
+                },
+                scales: {
+                    x: { grid: { display: false }, ticks: { maxTicksLimit: 12, font: { size: 9, weight: 'bold' } } },
+                    y: { grid: { color: '#f1f5f9' }, ticks: { font: { size: 9 } } }
+                }
+            }
+        });
+    });
+</script>
+{% endblock %}

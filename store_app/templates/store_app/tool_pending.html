@@ -1,0 +1,181 @@
+{% extends "store_app/base.html" %}
+{% block content %}
+<div class="space-y-4 select-none flex flex-col h-full overflow-hidden">
+    <form method="POST" id="bulkReturnForm" class="hidden" onsubmit="return confirmBulkReturn(event);">{% csrf_token %}<input type="hidden" name="action" value="bulk_return"></form>
+    <form method="POST" id="toolGatePassForm" class="hidden" target="_blank">{% csrf_token %}<input type="hidden" name="action" value="generate_gate_pass"></form>
+    <div class="bg-white border-2 border-slate-200 rounded-2xl p-3 shadow-xs flex flex-wrap items-center justify-between gap-3 text-xs shrink-0">
+        <form method="GET" class="flex flex-wrap items-center gap-2 flex-1">
+            <input type="text" name="q" value="{{ q }}" placeholder="Search pending tools, technicians, remarks..." 
+                   class="flex-1 min-w-[200px] bg-slate-50 border-2 border-slate-300 rounded-xl px-3 py-1.5 text-xs text-slate-950 font-black">
+            <button type="submit" class="btn-3d-slate px-4 py-1.5 text-white rounded-xl font-black uppercase text-xs cursor-pointer">Filter</button>
+            <a href="{% url 'tool_pending' %}" class="btn-3d-slate px-3.5 py-1.5 bg-slate-100 text-slate-800 rounded-xl font-black uppercase text-xs border border-slate-300">Reset</a>
+        </form>
+        <button type="button" class="pending-count-button flex-none px-5 py-2.5 rounded-xl font-black uppercase tracking-wide shadow-lg whitespace-nowrap cursor-default">
+            <i class="fa-solid fa-list-ol mr-1.5"></i><span>Total: {{ filtered_count }}</span>
+        </button>
+        <button type="submit" id="generateToolGPBtn" form="toolGatePassForm" class="btn-3d-indigo px-4 py-2 text-white font-black rounded-xl text-xs flex items-center space-x-1.5 shadow-md disabled:opacity-50">
+            <i class="fa-solid fa-id-card"></i><span>Generate Tools GP</span>
+        </button>
+        <button type="submit" id="returnSelectedBtn" form="bulkReturnForm" class="btn-3d-emerald px-5 py-2 text-white font-black rounded-xl text-xs flex items-center space-x-1.5 shadow-md disabled:opacity-50" disabled>
+            <i class="fa-solid fa-arrow-rotate-left"></i> <span>Return All Selected</span>
+        </button>
+    </div>
+
+    <div class="flex-1 overflow-y-auto border-2 border-slate-200 rounded-2xl bg-white shadow-xs hide-scrollbar">
+        <table class="w-full text-left text-xs text-slate-900">
+            <thead>
+                <tr class="sticky top-0 z-20 bg-gradient-to-r from-[#e0f2fe] to-[#bae6fd] border-b-2 border-[#7dd3fc]">
+                    <th class="px-5 py-3.5 text-[#0c4a6e] font-black uppercase tracking-wider">Tool (Click to Return)</th>
+                    <th class="px-5 py-3.5 text-[#0c4a6e] font-black uppercase tracking-wider">Technician Assigned</th>
+                    <th class="px-5 py-3.5 text-[#0c4a6e] font-black uppercase tracking-wider">Project Site</th>
+                    <th class="px-5 py-3.5 text-[#0c4a6e] font-black uppercase tracking-wider">Issue Date</th>
+                    <th class="px-5 py-3.5 text-[#0c4a6e] font-black uppercase tracking-wider">Issued By</th>
+                    <th class="px-5 py-3.5 text-[#0c4a6e] font-black uppercase tracking-wider">Remarks</th>
+                    <th class="px-5 py-3.5 text-center text-[#0c4a6e] font-black uppercase tracking-wider w-16">
+                        <label class="inline-flex items-center justify-center cursor-pointer" title="Select all tools issued today">
+                            <input type="checkbox" id="selectTodayToolsHeader" class="pending-checkbox h-4 w-4 accent-emerald-600">
+                        </label>
+                    </th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-200 font-bold">
+                {% for r in pending_list %}
+                <tr class="hover:bg-amber-50/50 transition cursor-pointer" onclick="if(!event.target.closest('.pending-checkbox')) window.location.href='{% url 'tool_return' %}?tx_id={{ r.id }}'">
+                    <td class="px-5 py-3 font-mono">
+                        <span class="pending-tool-id font-black block font-mono text-sm">[{{ r.tool.tool_no }}]</span>
+                        <span class="text-slate-800 text-[11px] font-sans font-bold">{{ r.tool.tool_name }}</span>
+                    </td>
+                    <td class="px-5 py-3">
+                        <span class="font-black block"><span class="pending-staff-id font-mono">{{ r.staff.staff_no }}</span> — <span class="text-slate-950">{{ r.staff.name }}</span></span>
+                        <span class="font-mono text-emerald-700 text-[11px]">{{ r.staff.designation }}</span>
+                    </td>
+                    <td class="px-5 py-3 text-emerald-700 font-bold">{{ r.project.project_name|default:"Workshop / Store" }}</td>
+                    <td class="px-5 py-3 font-mono"><span class="pending-date">{{ r.issue_date|date:"d-M-Y" }}</span> <span class="pending-time">{{ r.issue_date|date:"H:i" }}</span></td>
+                    <td class="px-5 py-3 font-black text-blue-700">{{ r.issued_by }}</td>
+                    <td class="px-5 py-3 text-slate-700 font-medium">{{ r.remarks|default:"Condition verified at Store F20" }}</td>
+                    <td class="px-5 py-3 text-center"><input type="checkbox" name="selected_tx" value="{{ r.id }}" data-today="{% if r.issue_date|date:'Y-m-d' == today|date:'Y-m-d' %}1{% else %}0{% endif %}" class="pending-checkbox row-pending-checkbox" form="toolGatePassForm" onclick="event.stopPropagation()" title="Select for return or gate pass"></td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="8" class="p-12 text-center text-slate-500 font-bold">No active pending tools checked out on site.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<style>
+  #bulkReturnModal{
+    position:fixed !important; inset:0 !important; z-index:9999 !important;
+    align-items:center !important; justify-content:center !important;
+    background:rgba(15,23,42,.48) !important; backdrop-filter:blur(2px);
+    padding:18px !important;
+  }
+  #bulkReturnModal.hidden{display:none !important;}
+  #bulkReturnModal.flex{display:flex !important;}
+  .kmb-bulk-modal{
+    position:relative !important; width:420px !important; max-width:calc(100vw - 36px) !important;
+    height:auto !important; min-height:0 !important; max-height:none !important;
+    flex:0 0 auto !important; overflow:hidden !important;
+    border:1px solid #a7f3d0 !important; border-radius:22px !important;
+    background:#fff !important; box-shadow:0 24px 70px rgba(15,23,42,.28) !important;
+  }
+  .kmb-bulk-head{
+    padding:20px 26px 16px !important; text-align:center !important;
+    background:linear-gradient(115deg,#ecfdf5 0%,#f0fdfa 55%,#f8fafc 100%) !important;
+    border-bottom:1px solid #d1fae5 !important;
+  }
+  .kmb-bulk-icon{
+    width:54px !important; height:54px !important; margin:0 auto 10px !important;
+    display:flex !important; align-items:center !important; justify-content:center !important;
+    border-radius:17px !important; background:#059669 !important; color:#fff !important;
+    box-shadow:0 9px 18px rgba(5,150,105,.25) !important; font-size:22px !important;
+  }
+  .kmb-bulk-title{margin:0 !important; font-size:20px !important; line-height:1.2 !important; font-weight:900 !important; color:#0f172a !important;}
+  .kmb-bulk-sub{margin:6px 0 0 !important; font-size:12px !important; font-weight:700 !important; color:#64748b !important;}
+  .kmb-bulk-body{padding:16px 26px 20px !important; text-align:center !important;}
+  .kmb-bulk-message{
+    margin:0 !important; padding:13px 16px !important; border-radius:14px !important;
+    background:#f8fafc !important; border:1px solid #e2e8f0 !important;
+    color:#334155 !important; font-size:14px !important; line-height:1.45 !important; font-weight:800 !important;
+  }
+  .kmb-bulk-actions{display:flex !important; justify-content:center !important; gap:12px !important; margin-top:18px !important;}
+  .kmb-bulk-actions button{height:42px !important; border-radius:12px !important; font-size:12px !important; font-weight:900 !important; text-transform:uppercase !important;}
+  .kmb-cancel{min-width:108px !important; padding:0 18px !important; border:2px solid #e2e8f0 !important; background:#fff !important; color:#475569 !important; box-shadow:0 4px 10px rgba(15,23,42,.06) !important;}
+  .kmb-confirm{min-width:156px !important; padding:0 20px !important;}
+  .kmb-bulk-close{
+    position:absolute !important; right:14px !important; top:14px !important; width:34px !important; height:34px !important;
+    border-radius:999px !important; border:1px solid #dbe4ee !important; background:#fff !important; color:#64748b !important;
+    display:flex !important; align-items:center !important; justify-content:center !important; box-shadow:0 4px 12px rgba(15,23,42,.12) !important;
+    cursor:pointer !important; z-index:2 !important;
+  }
+  @media (max-width:520px){.kmb-bulk-modal{width:calc(100vw - 28px) !important}.kmb-bulk-head{padding-left:18px !important;padding-right:18px !important}.kmb-bulk-body{padding-left:18px !important;padding-right:18px !important}}
+</style>
+<div id="bulkReturnModal" class="hidden" role="dialog" aria-modal="true" aria-labelledby="bulkReturnTitle">
+  <div class="kmb-bulk-modal">
+    <button type="button" id="closeBulkReturn" class="kmb-bulk-close" aria-label="Close confirmation"><i class="fa-solid fa-xmark"></i></button>
+    <div class="kmb-bulk-head">
+      <div class="kmb-bulk-icon"><i class="fa-solid fa-arrow-rotate-left"></i></div>
+      <h3 id="bulkReturnTitle" class="kmb-bulk-title">Confirm Bulk Tool Return</h3>
+      <p class="kmb-bulk-sub">Please verify before completing this action.</p>
+    </div>
+    <div class="kmb-bulk-body">
+      <p id="bulkReturnMessage" class="kmb-bulk-message"></p>
+      <div class="kmb-bulk-actions">
+        <button type="button" id="cancelBulkReturn" class="kmb-cancel">Cancel</button>
+        <button type="button" id="confirmBulkReturnBtn" class="btn-3d-emerald kmb-confirm"><i class="fa-solid fa-check mr-1.5"></i>Confirm Return</button>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+(function(){
+    const rows = () => Array.from(document.querySelectorAll('.row-pending-checkbox'));
+    const btn = document.getElementById('returnSelectedBtn');
+    const gpBtn = document.getElementById('generateToolGPBtn');
+    const todayHeader = document.getElementById('selectTodayToolsHeader');
+    function sync(){
+        const list=rows(), checked=list.filter(x=>x.checked).length;
+        btn.disabled = checked === 0;
+        if(gpBtn) gpBtn.disabled = checked === 0;
+        const span=btn.querySelector('span'); if(span) span.textContent = checked ? `Return All Selected (${checked})` : 'Return All Selected';
+        syncBulkReturnForm();
+        if (todayHeader) {
+            const todayRows = list.filter(x => x.dataset.today === '1');
+            todayHeader.checked = todayRows.length > 0 && todayRows.every(x => x.checked);
+            todayHeader.indeterminate = todayRows.some(x => x.checked) && !todayHeader.checked;
+        }
+    }
+    if(todayHeader) todayHeader.addEventListener('change', ()=>{
+        const selectToday = todayHeader.checked;
+        rows().forEach(x=>{ x.checked = selectToday && x.dataset.today === '1'; });
+        sync();
+    });
+    function syncBulkReturnForm(){
+        const form=document.getElementById('bulkReturnForm');
+        if(!form) return;
+        form.querySelectorAll('input[name=selected_tx]').forEach(e=>e.remove());
+        rows().filter(x=>x.checked).forEach(x=>{ const h=document.createElement('input'); h.type='hidden'; h.name='selected_tx'; h.value=x.value; form.appendChild(h); });
+    }
+    rows().forEach(x=>x.addEventListener('change', sync));
+    sync();
+    const modal=document.getElementById('bulkReturnModal');
+    const message=document.getElementById('bulkReturnMessage');
+    const form=document.getElementById('bulkReturnForm');
+    let approved=false;
+    function closeModal(){ modal.classList.add('hidden'); modal.classList.remove('flex'); }
+    window.confirmBulkReturn = function(event){
+        if(approved) return true;
+        if(event) event.preventDefault();
+        const count=rows().filter(x=>x.checked).length;
+        if(!count) return false;
+        message.textContent = `${count} selected tool${count === 1 ? '' : 's'} will be returned to Store F20 as Serviceable.`;
+        modal.classList.remove('hidden'); modal.classList.add('flex');
+        return false;
+    };
+    document.getElementById('cancelBulkReturn').addEventListener('click', closeModal);
+    document.getElementById('closeBulkReturn').addEventListener('click', closeModal);
+    modal.addEventListener('click', e=>{ if(e.target===modal) closeModal(); });
+    document.getElementById('confirmBulkReturnBtn').addEventListener('click', ()=>{ approved=true; closeModal(); form.requestSubmit(); });
+})();
+</script>
+{% endblock %}

@@ -1,0 +1,1093 @@
+{% extends "store_app/base.html" %}
+{% load kensova_tags %}
+{% block title %}Records & Reports | Kensova Operations{% endblock %}
+{% block content %}
+<form method="POST" id="materialGatePassForm" class="hidden" target="_blank">{% csrf_token %}<input type="hidden" name="action" value="generate_material_gate_pass"></form>
+<div class="space-y-4 select-none flex flex-col h-full overflow-hidden">
+
+    <style>
+        /* Desktop report navigation: three balanced groups, with each group
+           using the available width instead of clipping long labels. */
+        .report-tabs-v3 {
+            box-sizing:border-box; width:100%; overflow:visible;
+            display:grid;
+            grid-template-columns:minmax(370px, .95fr) minmax(500px, 1.40fr) minmax(390px, 1fr);
+            align-items:stretch; gap:10px;
+            background:#fff; border:2px solid #cbd5e1; border-radius:1.35rem;
+            padding:10px; box-shadow:0 5px 16px -3px rgba(15,23,42,.08);
+        }
+        .report-tab-group-v3 {
+            box-sizing:border-box; min-width:0; overflow:visible;
+            display:grid; grid-template-columns:auto minmax(0,1fr);
+            align-items:stretch; gap:8px;
+            border-radius:1.1rem; padding:6px 8px;
+        }
+        .report-tab-group-v3-row {
+            display:grid !important; align-items:stretch; min-width:0; gap:5px !important;
+        }
+        .group-tools .report-tab-group-v3-row { grid-template-columns:1.22fr 1.14fr .88fr; }
+        .group-materials .report-tab-group-v3-row { grid-template-columns:.72fr .86fr .82fr 1.12fr 1.34fr; }
+        .group-masters .report-tab-group-v3-row { grid-template-columns:.78fr .96fr 1.48fr .82fr; }
+        .report-tab-group-v3-label {
+            flex:0 0 auto; white-space:nowrap; min-width:max-content;
+            font-size:12px; font-weight:900; text-transform:uppercase; letter-spacing:.1em;
+            display:flex; align-items:center; gap:6px;
+            padding-left:6px; padding-right:9px;
+            border-right:2px solid rgba(0,0,0,.1);
+        }
+        .report-tabs-v3 .report-tab-v3 {
+            box-sizing:border-box; min-width:0; width:100%; max-width:100%;
+            display:flex; align-items:center; justify-content:center;
+            gap:5px; padding:6px 7px;
+            border-radius:.85rem; font-size:10px; font-weight:900;
+            white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+            border:1.5px solid #94a3b8;
+            background:rgba(255,255,255,.82);
+            box-shadow:inset 0 1px 0 rgba(255,255,255,.9), 0 1px 2px rgba(15,23,42,.08);
+        }
+        .group-tools .report-tab-v3 { border-color:#f59e0b; color:#78350f; }
+        .group-materials .report-tab-v3 { border-color:#10b981; color:#065f46; }
+        .group-masters .report-tab-v3 { border-color:#8b5cf6; color:#581c87; }
+        .report-tabs-v3 .report-tab-v3 i { flex:0 0 auto; }
+        .report-tabs-v3 .report-tab-v3:not(.active) { overflow:hidden; }
+
+        @media (max-width:1450px) and (min-width:1181px) {
+            .report-tabs-v3 {
+                grid-template-columns:minmax(320px,.95fr) minmax(420px,1.40fr) minmax(340px,1fr);
+            }
+            .report-tabs-v3 .report-tab-group-v3-label { font-size:10.5px; padding-left:4px; padding-right:7px; gap:5px; }
+            .report-tabs-v3 .report-tab-v3 { font-size:9.6px; padding-left:5px; padding-right:5px; gap:4px; }
+            .group-tools .report-tab-group-v3-row { grid-template-columns:1.22fr 1.14fr .88fr; }
+            .group-materials .report-tab-group-v3-row { grid-template-columns:.70fr .84fr .80fr 1.12fr 1.34fr; }
+            .group-masters .report-tab-group-v3-row { grid-template-columns:.76fr .94fr 1.50fr .80fr; }
+        }
+        @media (max-width:1180px) {
+            .report-tabs-v3 { grid-template-columns:1fr; }
+            .report-tab-group-v3 { display:flex; flex-wrap:wrap; }
+            .report-tab-group-v3-row { display:flex !important; flex-wrap:wrap !important; flex:1 1 100%; }
+            .report-tabs-v3 .report-tab-v3 { width:auto; flex:1 1 auto; min-width:110px; }
+        }
+        @media (max-width:700px) {
+            .report-tabs-v3 .report-tab-group-v3-row { display:grid !important; grid-template-columns:repeat(2,minmax(0,1fr)) !important; width:100%; }
+            .report-tabs-v3 .report-tab-v3 { min-width:0; }
+        }
+
+        .group-tools {
+            background: linear-gradient(180deg, #fffbeb 0%, #fef3c7 100%) !important;
+            border: 2px solid #f59e0b !important;
+        }
+        .group-materials {
+            background: linear-gradient(180deg, #f0fdf4 0%, #dcfce7 100%) !important;
+            border: 2px solid #10b981 !important;
+        }
+        .group-masters {
+            background: linear-gradient(180deg, #f5f3ff 0%, #ede9fe 100%) !important;
+            border: 2px solid #8b5cf6 !important;
+        }
+
+        .report-tab-v3:hover {
+            border-color: #0f766e;
+            color: #064e3b;
+            background: #ecfdf5;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 10px rgba(5, 150, 105, 0.15);
+        }
+        .report-tab-v3.active {
+            background: linear-gradient(180deg, #059669 0%, #047857 100%);
+            color: #ffffff;
+            border-color: #047857;
+            box-shadow: 0 4px 14px -1px rgba(5, 150, 105, 0.45);
+        }
+        .report-tab-v3-warn.active {
+            background: linear-gradient(180deg, #e11d48 0%, #be123c 100%);
+            border-color: #9f1239;
+            color: #ffffff;
+            box-shadow: 0 4px 14px -1px rgba(225, 29, 72, 0.45);
+        }
+
+        .filterbar-v3 {
+            background: #ffffff;
+            border: 2px solid #cbd5e1;
+            border-radius: 1.25rem;
+            padding: 10px 14px;
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+        }
+        .seg-btn {
+            padding: 6px 14px;
+            border-radius: 0.65rem;
+            font-size: 11.5px;
+            font-weight: 800;
+            border: 1px solid #cbd5e1;
+            background: #ffffff;
+            color: #334155;
+            transition: all 0.15s ease;
+        }
+        .seg-btn.active {
+            background: #0f172a;
+            color: #ffffff;
+            border-color: #0f172a;
+        }
+
+        .frozen-table-container {
+            flex: 1;
+            overflow-y: auto;
+            border: 2px solid #cbd5e1;
+            border-radius: 1.25rem;
+            background: #ffffff;
+        }
+        .frozen-table-container table thead th {
+            position: sticky;
+            top: 0;
+            z-index: 20;
+            background: linear-gradient(180deg, #e0f2fe 0%, #bae6fd 100%) !important;
+            color: #0c4a6e !important;
+            font-weight: 900 !important;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            border-bottom: 2px solid #7dd3fc !important;
+            box-shadow: 0 2px 5px rgba(12, 74, 110, 0.08);
+        }
+        .report-time {
+            color: #075fc6 !important;
+            font-weight: 900 !important;
+            text-shadow: 0 1px 0 #ffffff;
+        }
+        .report-date-range { height:38px !important; min-height:38px !important; max-height:38px !important; }
+        .report-date-range input[type="date"] { height:24px !important; min-height:24px !important; max-height:24px !important; padding:0 !important; line-height:24px !important; }
+            #newPRModal .pr-picker-card select.searchable-select{border:0!important;box-shadow:none!important;outline:0!important;}
+        #newPRModal .pr-picker-card .ts-control{border:1.5px solid #94a3b8!important;box-shadow:inset 0 2px 4px rgba(15,23,42,.06)!important;}
+        .space-y-4.select-none.flex.flex-col.h-full.overflow-hidden{min-height:100%;height:100%;padding-bottom:0!important;margin-bottom:0!important;}
+    </style>
+
+    <!-- 1. Category Tabs -->
+    <div class="report-tabs-v3 shrink-0">
+        <!-- Tools Section -->
+        <div class="report-tab-group-v3 group-tools">
+            <span class="report-tab-group-v3-label text-amber-950"><i class="fa-solid fa-bolt text-amber-600 text-sm"></i> Tools</span>
+            <div class="report-tab-group-v3-row">
+                <a class="report-tab-v3 {% if tab == 'toolhistory' %}active{% endif %}" href="?tab=toolhistory">
+                    <i class="fa-solid fa-clock-rotate-left"></i> Tools History
+                </a>
+                <a class="report-tab-v3 {% if tab == 'toolregister' %}active{% endif %}" href="?tab=toolregister">
+                    <i class="fa-solid fa-toolbox"></i> Tool Register
+                </a>
+                <a class="report-tab-v3 {% if tab == 'gatepassall' %}active{% endif %}" href="?tab=gatepassall">
+                    <i class="fa-solid fa-id-card"></i> Gate Pass
+                </a>
+            </div>
+        </div>
+
+        <!-- Materials Section -->
+        <div class="report-tab-group-v3 group-materials">
+            <span class="report-tab-group-v3-label text-emerald-950"><i class="fa-solid fa-boxes-stacked text-emerald-600 text-sm"></i> Materials</span>
+            <div class="report-tab-group-v3-row">
+                <a class="report-tab-v3 {% if tab == 'issues' %}active{% endif %}" href="?tab=issues"><i class="fa-solid fa-arrow-right"></i> Issue</a>
+                <a class="report-tab-v3 {% if tab == 'receipts' %}active{% endif %}" href="?tab=receipts"><i class="fa-solid fa-plus"></i> Receipt</a>
+                <a class="report-tab-v3 {% if tab == 'materialreturns' %}active{% endif %}" href="?tab=materialreturns"><i class="fa-solid fa-rotate-left"></i> Return</a>
+                <a class="report-tab-v3 {% if tab == 'materialstock' %}active{% endif %}" href="?tab=materialstock"><i class="fa-solid fa-cubes"></i> Material Stock</a>
+                <a class="report-tab-v3 {% if tab == 'purchase' %}active{% endif %}" href="?tab=purchase"><i class="fa-solid fa-clipboard-list"></i> Purchase Request</a>
+            </div>
+        </div>
+
+        <!-- Masters & System Section -->
+        <div class="report-tab-group-v3 group-masters">
+            <span class="report-tab-group-v3-label text-purple-950"><i class="fa-solid fa-gem text-purple-600 text-sm"></i> Masters</span>
+            <div class="report-tab-group-v3-row">
+                <a class="report-tab-v3 {% if tab == 'staff' %}active{% endif %}" href="?tab=staff">
+                    <i class="fa-solid fa-users"></i> Staff
+                </a>
+                <a class="report-tab-v3 {% if tab == 'suppliers' %}active{% endif %}" href="?tab=suppliers">
+                    <i class="fa-solid fa-handshake"></i> Suppliers
+                </a>
+                <a class="report-tab-v3 {% if tab == 'projects' %}active{% endif %}" href="?tab=projects">
+                    <i class="fa-solid fa-location-dot"></i> Projects / Sites
+                </a>
+                <a class="report-tab-v3 report-tab-v3-warn {% if tab == 'deleted' %}active{% endif %}" href="?tab=deleted">
+                    <i class="fa-solid fa-triangle-exclamation"></i> Deleted
+                </a>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- 2. Filter Bar -->
+    <div class="filterbar-v3 shrink-0">
+        <form method="GET" class="flex flex-wrap items-center gap-2 flex-1">
+            <input type="hidden" name="tab" value="{{ tab }}">
+            
+            <div class="relative min-w-[220px] flex-1">
+                <input type="text" name="q" value="{{ q }}" placeholder="Search current records..." 
+                       class="w-full bg-slate-50 border-2 border-slate-300 rounded-xl pl-9 pr-3 py-2 text-xs text-slate-950 font-black focus:outline-none focus:border-emerald-600 focus:bg-white">
+                <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-xs text-slate-400"></i>
+            </div>
+
+            {% if tab in date_field_tabs %}
+            <div class="report-date-range flex items-center space-x-1.5 bg-slate-50 border-2 border-slate-300 rounded-xl px-3 text-xs">
+                <span class="font-bold text-slate-500 text-[11px]"><i class="fa-regular fa-calendar mr-1"></i> From</span>
+                <input type="date" name="date_from" value="{{ date_from }}" class="bg-transparent border-0 font-mono text-xs font-bold text-slate-900 focus:outline-none">
+                <span class="font-bold text-slate-400 text-[11px]">To</span>
+                <input type="date" name="date_to" value="{{ date_to }}" class="bg-transparent border-0 font-mono text-xs font-bold text-slate-900 focus:outline-none">
+            </div>
+            {% endif %}
+
+            {% if tab == 'toolhistory' %}
+            <div class="flex items-center space-x-1 bg-slate-100 p-1 rounded-xl border border-slate-300">
+                <button name="state" value="all" type="submit" class="seg-btn {% if state == 'all' or not state %}active{% endif %}">All</button>
+                <button name="state" value="pending" type="submit" class="seg-btn {% if state == 'pending' %}active{% endif %}">Pending</button>
+                <button name="state" value="returned" type="submit" class="seg-btn {% if state == 'returned' %}active{% endif %}">Returned</button>
+            </div>
+            {% elif tab == 'toolregister' %}
+            <select name="status" class="bg-slate-50 border-2 border-slate-300 rounded-xl px-3 py-1.5 text-xs font-bold text-slate-900">
+                <option value="">All Status</option>
+                <option value="Available" {% if status == 'Available' %}selected{% endif %}>Serviceable</option>
+                <option value="Issued" {% if status == 'Issued' %}selected{% endif %}>Issued to Site</option>
+                <option value="Maintenance" {% if status == 'Maintenance' %}selected{% endif %}>Unserviceable</option>
+                <option value="Scrapped" {% if status == 'Scrapped' %}selected{% endif %}>Scrapped</option>
+            </select>
+            <button type="button" onclick="document.getElementById('addToolModal').classList.remove('hidden')" class="btn-3d-amber px-4 py-2 rounded-xl text-xs font-black flex items-center space-x-1.5 cursor-pointer shadow-md">
+                <i class="fa-solid fa-plus text-xs"></i> <span>Add New Tool</span>
+            </button>
+            {% elif tab == 'materialstock' %}
+            <select name="stock" class="bg-slate-50 border-2 border-slate-300 rounded-xl px-3 py-1.5 text-xs font-bold text-slate-900">
+                <option value="">All Stock</option>
+                <option value="low" {% if stock == 'low' %}selected{% endif %}>Low Stock</option>
+                <option value="ok" {% if stock == 'ok' %}selected{% endif %}>Healthy Stock</option>
+            </select>
+            {% elif tab == 'issues' %}
+            <select name="project" class="bg-slate-50 border-2 border-slate-300 rounded-xl px-3 py-1.5 text-xs font-bold text-slate-900">
+                <option value="">All Projects</option>
+                {% for p in projects %}
+                <option value="{{ p.project_code }}" {% if project == p.project_code %}selected{% endif %}>{{ p.project_name }}</option>
+                {% endfor %}
+            </select>
+            <button type="submit" form="materialGatePassForm" id="generateMaterialGPBtn" class="btn-3d-indigo px-4 py-2 text-white font-black text-xs rounded-xl shadow-md flex items-center gap-1.5 disabled:opacity-50" disabled><i class="fa-solid fa-id-card"></i> Generate Material GP</button>
+            {% elif tab == 'purchase' %}
+            <select name="status" class="bg-slate-50 border-2 border-slate-300 rounded-xl px-3 py-1.5 text-xs font-bold text-slate-900">
+                <option value="">All Status</option>
+                <option value="Pending" {% if status == 'Pending' %}selected{% endif %}>Pending</option>
+                <option value="Partial" {% if status == 'Partial' %}selected{% endif %}>Partial</option>
+                <option value="Received" {% if status == 'Received' %}selected{% endif %}>Received</option>
+            </select>
+            <button type="button" onclick="document.getElementById('newPRModal').classList.remove('hidden')" class="btn-3d-purple px-4 py-2 rounded-xl text-xs font-black flex items-center space-x-1.5 cursor-pointer shadow-md">
+                <i class="fa-solid fa-plus"></i> <span>Create PR</span>
+            </button>
+            {% elif tab == 'staff' %}
+            <button type="button" onclick="document.getElementById('addStaffModal').classList.remove('hidden')" class="btn-3d-emerald px-4 py-2 rounded-xl text-xs font-black flex items-center space-x-1.5 shadow-md">
+                <i class="fa-solid fa-user-plus text-xs"></i> <span>Add Staff</span>
+            </button>
+            {% elif tab == 'suppliers' %}
+            <button type="button" onclick="document.getElementById('addSupplierModal').classList.remove('hidden')" class="btn-3d-indigo px-3.5 py-2 rounded-xl text-xs font-black flex items-center space-x-1.5 shadow-md">
+                <i class="fa-solid fa-plus text-xs"></i> <span>Add Supplier</span>
+            </button>
+            {% elif tab == 'projects' %}
+            <button type="button" onclick="document.getElementById('addProjectModal').classList.remove('hidden')" class="btn-3d-amber px-3.5 py-2 rounded-xl text-xs font-black flex items-center space-x-1.5 shadow-md">
+                <i class="fa-solid fa-plus text-xs"></i> <span>Commission Project</span>
+            </button>
+            {% endif %}
+
+            <button type="submit" class="btn-3d-slate px-4 py-2 text-white font-black text-xs uppercase rounded-xl transition cursor-pointer">FILTER</button>
+            <a href="?tab={{ tab }}" class="btn-3d-slate px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 font-black text-xs uppercase rounded-xl border border-slate-300 transition">RESET</a>
+        </form>
+
+        <div class="flex items-center space-x-2">
+            <span class="px-3.5 py-2 rounded-xl bg-blue-50 text-blue-800 border-2 border-blue-200 font-black text-xs whitespace-nowrap">
+                <i class="fa-solid fa-list-ol mr-1.5"></i>{% if filter_active %}Filtered: {% else %}Total: {% endif %}{{ filtered_count }}
+            </span>
+            <a href="{% url 'export_reports_excel' %}?tab={{ tab }}&q={{ q }}&state={{ state }}&status={{ status }}&stock={{ stock }}&project={{ project }}&date_from={{ date_from }}&date_to={{ date_to }}" class="btn-3d-emerald px-3.5 py-2 text-white rounded-xl text-xs font-black flex items-center space-x-1.5 cursor-pointer shadow-md min-w-[86px] justify-center">
+                <i class="fa-solid fa-file-excel"></i> <span>⇩ EXCEL</span>
+            </a>
+            <button onclick="exportReportToPDF('{{ tab }}', 'reportTable')" class="btn-3d-rose px-3.5 py-2 text-white rounded-xl text-xs font-black flex items-center space-x-1.5 cursor-pointer shadow-md min-w-[86px] justify-center">
+                <i class="fa-solid fa-file-pdf"></i> <span>⇩ PDF</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- 3. Frozen Table -->
+    <div class="frozen-table-container app-scroll hide-scrollbar">
+        <table id="reportTable" class="w-full text-left text-xs text-slate-900">
+                        {% if tab == 'gatepassall' or tab == 'materialgp' or tab == 'toolsgp' %}
+            <thead><tr><th class="px-5 py-3.5">Pass No</th><th class="px-5 py-3.5">Type</th><th class="px-5 py-3.5">Date / Time</th><th class="px-5 py-3.5">Employee</th><th class="px-5 py-3.5">Destination</th><th class="px-5 py-3.5">Items</th><th class="px-5 py-3.5">Created By</th><th class="px-5 py-3.5">Open / Print</th></tr></thead>
+            <tbody class="divide-y divide-slate-200 font-bold">
+                {% for x in rows %}
+                <tr class="hover:bg-indigo-50/50 transition">
+                    <td class="px-5 py-3 font-mono font-black text-indigo-700">{{ x.movement_pass_no }}</td>
+                    <td class="px-5 py-3">{% if x.pass_type == 'Tool' %}<span class="px-2.5 py-1 rounded-full text-[10px] font-black bg-amber-100 text-amber-900 border border-amber-300">TOOLS GP</span>{% else %}<span class="px-2.5 py-1 rounded-full text-[10px] font-black bg-purple-100 text-purple-900 border border-purple-300">MATERIAL GP</span>{% endif %}</td>
+                    <td class="px-5 py-3 font-mono">{{ x.created_at|date:"d-M-Y H:i" }}</td>
+                    <td class="px-5 py-3">{{ x.employee_name|default:"—" }}<span class="block text-[11px] text-slate-500 font-mono">{{ x.employee_id_designation|default:"—" }}</span></td>
+                    <td class="px-5 py-3">{{ x.destination|default:"—" }}</td>
+                    <td class="px-5 py-3 font-mono">{{ x.items.all|length }}</td>
+                    <td class="px-5 py-3">{{ x.created_by|default:"—" }}</td>
+                    <td class="px-5 py-3"><a target="_blank" href="{% url 'print_gate_pass' x.id %}" class="btn-3d-indigo inline-flex px-3 py-1.5 rounded-lg text-white text-[10px] font-black uppercase"><i class="fa-solid fa-print mr-1"></i> Print</a></td>
+                </tr>
+                {% empty %}<tr><td colspan="8" class="p-8 text-center text-slate-400 font-bold">No Gate Pass records found.</td></tr>{% endfor %}
+            </tbody>
+            {% endif %}
+
+
+            {% if tab == 'toolhistory' %}
+            <thead>
+                <tr>
+                    <th class="px-5 py-3.5">Tool Detail</th>
+                    <th class="px-5 py-3.5">Issued At</th>
+                    <th class="px-5 py-3.5">Issued By</th>
+                    <th class="px-5 py-3.5">Received By</th>
+                    <th class="px-5 py-3.5">Project</th>
+                    <th class="px-5 py-3.5">Returned At</th>
+                    <th class="px-5 py-3.5">Received By Store</th>
+                    <th class="px-5 py-3.5">Condition</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-200 font-bold">
+                {% for x in rows %}
+                <tr class="hover:bg-emerald-50/50 transition">
+                    <td class="px-5 py-3 font-mono">
+                        <span class="px-2 py-0.5 rounded text-xs font-black bg-amber-100 text-amber-950 border border-amber-300 inline-block font-mono">[{{ x.tool.tool_no }}]</span>
+                        <span class="block text-blue-700 text-xs font-mono font-black mt-1">{{ x.tool.tool_name }}</span>
+                    </td>
+                    <td class="px-5 py-3 font-mono text-slate-900">{{ x.issue_date|date:"d-M-Y" }} <span class="report-time">{{ x.issue_date|date:"H:i" }}</span></td>
+                    <td class="px-5 py-3">{{ x.issued_by|staff_display }}</td>
+                    <td class="px-5 py-3">
+                        {% if x.staff %}
+                            {{ x.staff.formatted_name|staff_display }}
+                            <span class="font-mono text-emerald-700 text-[11px] block mt-0.5">{{ x.staff.designation }}</span>
+                        {% else %}
+                            {{ x.received_by|default:"—"|staff_display }}
+                        {% endif %}
+                    </td>
+                    <td class="px-5 py-3">{{ x.project.project_name|default:"Workshop F20" }}</td>
+                    <td class="px-5 py-3">
+                        {% if x.status == 'Issued' %}
+                            <span class="px-2 py-0.5 rounded text-[10px] font-black bg-amber-100 text-amber-950 border border-amber-300 uppercase">PENDING</span>
+                        {% else %}
+                            <span class="font-mono">{{ x.return_date|date:"d-M-Y" }} <span class="report-time">{{ x.return_date|date:"H:i" }}</span></span>
+                        {% endif %}
+                    </td>
+                    <td class="px-5 py-3">{{ x.received_by_store|default:"—"|staff_display }}</td>
+                    <td class="px-5 py-3">
+                        {% if x.return_condition %}
+                            <span class="px-2.5 py-0.5 rounded-full text-[10px] font-black {% if x.return_condition == 'Good' %}bg-emerald-100 text-emerald-950 border border-emerald-300{% else %}bg-rose-100 text-rose-950 border border-rose-300{% endif %}">
+                                {{ x.return_condition }}
+                            </span>
+                        {% else %}
+                            <span class="text-slate-400 font-bold">—</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="8" class="p-8 text-center text-slate-400 font-bold">No tool transaction history found.</td></tr>
+                {% endfor %}
+            </tbody>
+            {% endif %}
+
+            {% if tab == 'toolregister' %}
+            <thead>
+                <tr>
+                    <th class="px-5 py-3.5">Tool No</th>
+                    <th class="px-5 py-3.5">Tool Name</th>
+                    <th class="px-5 py-3.5">Store Location</th>
+                    <th class="px-5 py-3.5">Status Date</th>
+                    <th class="px-5 py-3.5">Calibration Due</th>
+                    <th class="px-5 py-3.5">Status</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-200 font-bold">
+                {% for x in rows %}
+                <tr onclick="openEditTool('{{ x.tool_no|escapejs }}','{{ x.tool_name|escapejs }}','{{ x.store_location|escapejs }}','{{ x.serial_no|default:''|escapejs }}','{{ x.status|escapejs }}','{{ x.calibration_due_date|date:'Y-m-d' }}')" class="hover:bg-emerald-50/50 transition cursor-pointer">
+                    <td class="px-5 py-3 font-mono font-black text-slate-950">
+                        <span class="px-2 py-0.5 rounded text-xs font-black bg-amber-100 text-amber-950 border border-amber-300">[{{ x.tool_no }}]</span>
+                    </td>
+                    <td class="px-5 py-3 font-black text-slate-950">{{ x.tool_name }}</td>
+                    <td class="px-5 py-3 font-mono">
+                        <span class="px-2 py-0.5 rounded text-[10px] font-black bg-emerald-100 text-emerald-950 border border-emerald-300">Loc: {{ x.store_location }}</span>
+                    </td>
+                    <td class="px-5 py-3 font-mono font-bold text-slate-800">
+                        {{ x.status_changed_at|date:"d-M-Y" }} <span class="report-time">{{ x.status_changed_at|date:"H:i" }}</span>
+                    </td>
+                    <td class="px-5 py-3 font-mono font-bold text-slate-800">
+                        {{ x.calibration_due_date|date:"d-M-Y"|default:"Not Set" }}
+                    </td>
+                    <td class="px-5 py-3">
+                        <span class="px-2.5 py-0.5 rounded-full text-[10px] font-black {% if x.status == 'Available' %}bg-emerald-100 text-emerald-950 border border-emerald-300{% else %}bg-amber-100 text-amber-950 border border-amber-300{% endif %}">
+                            {{ x.status }}
+                        </span>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="6" class="p-8 text-center text-slate-400 font-bold">No tools registered in catalog.</td></tr>
+                {% endfor %}
+            </tbody>
+            {% endif %}
+
+            {% if tab == 'materialstock' %}
+            <thead>
+                <tr><th class="px-5 py-3.5">Part No</th><th class="px-5 py-3.5">Description</th><th class="px-5 py-3.5">Qty</th><th class="px-5 py-3.5">Unit</th><th class="px-5 py-3.5">Minimum</th><th class="px-5 py-3.5">Location</th><th class="px-5 py-3.5">GRN Details</th></tr>
+            </thead>
+            <tbody class="divide-y divide-slate-200 font-bold">
+                {% for x in rows %}
+                <tr onclick="openEditMaterial('{{ x.material_code|escapejs }}','{{ x.description|escapejs }}','{{ x.specification|default:''|escapejs }}','{{ x.current_stock }}','{{ x.unit|upper|escapejs }}','{{ x.min_stock_alert }}','{{ x.store_location|escapejs }}')" class="hover:bg-emerald-50/50 transition cursor-pointer {% if x.is_low_stock %}bg-rose-50/40{% endif %}">
+                    <td class="px-5 py-3 font-mono font-black text-slate-950"><span class="px-2 py-0.5 rounded text-xs font-black bg-blue-50 text-blue-700 border border-blue-200">[{{ x.material_code }}]</span></td>
+                    <td class="px-5 py-3"><span class="font-black text-slate-950 block">{{ x.description }}</span>{% if x.specification %}<small class="block text-slate-500 font-sans font-semibold mt-1">{{ x.specification }}</small>{% endif %}</td>
+                    <td class="px-5 py-3 font-mono font-black {% if x.is_low_stock %}text-rose-700{% else %}text-emerald-700{% endif %}">{{ x.current_stock }}</td>
+                    <td class="px-5 py-3 font-mono font-black text-purple-700">{{ x.unit|upper }}</td>
+                    <td class="px-5 py-3 font-mono text-slate-700">{{ x.min_stock_alert }}</td>
+                    <td class="px-5 py-3 font-mono">{{ x.store_location }}</td>
+                    <td class="px-5 py-3"><span class="font-mono font-black text-blue-700">{{ x.latest_grn_no|default:"—" }}</span><small class="block text-slate-500 mt-1">DN/PO: {{ x.latest_dn_no|default:"—" }}{% if x.latest_grn_date %} · {{ x.latest_grn_date|date:"d-M-Y" }}{% endif %}</small></td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="7" class="p-8 text-center text-slate-400 font-bold">No materials found.</td></tr>
+                {% endfor %}
+            </tbody>
+            {% endif %}
+
+            <!-- Purchase Request item monitoring report -->
+            {% if tab == 'purchase' %}
+            <thead>
+                <tr><th class="px-3 py-3.5">PR No</th><th class="px-3 py-3.5">PR Date</th><th class="px-3 py-3.5">Item Detail</th><th class="px-3 py-3.5">Unit</th><th class="px-3 py-3.5">PR Qty</th><th class="px-3 py-3.5">Rec Qty</th><th class="px-3 py-3.5">Pending Qty</th><th class="px-3 py-3.5">Status</th><th class="px-3 py-3.5">Date Rec</th><th class="px-3 py-3.5">Remarks</th></tr>
+            </thead>
+            <tbody class="divide-y divide-slate-200 font-bold">
+                {% for x in rows %}
+                <tr class="hover:bg-purple-50/60 transition cursor-pointer" onclick="openPRDetailModal('{{ x.pr_number|escapejs }}', '{{ x.generated_by|escapejs }}', '{{ x.pr_date|date:"d-M-Y H:i"|escapejs }}', '{{ x.pr_status|escapejs }}', '{{ x.pr_notes|escapejs }}', '{{ x.pr_items_json|escapejs }}')" title="Click to open full purchase request">
+                    <td class="px-3 py-3 font-mono font-black text-purple-700">{{ x.pr_number }}</td>
+                    <td class="px-3 py-3 font-mono text-slate-900">{{ x.pr_date|date:"d-M-Y" }}</td>
+                    <td class="px-3 py-3"><span class="block font-mono font-black text-blue-700">[{{ x.item_code }}]</span><span class="block text-slate-800 font-bold mt-1 text-xs">{{ x.item_desc }}</span></td>
+                    <td class="px-3 py-3 font-mono font-black text-purple-700">{{ x.unit }}</td>
+                    <td class="px-3 py-3 font-mono font-black text-slate-950">{{ x.pr_qty }}</td>
+                    <td class="px-3 py-3 font-mono font-black text-emerald-700">{{ x.rec_qty }}</td>
+                    <td class="px-3 py-3 font-mono font-black {% if x.pending_qty > 0 %}text-rose-700{% else %}text-emerald-700{% endif %}">{{ x.pending_qty }}</td>
+                    <td class="px-3 py-3">{% if x.item_status == 'Received' %}<span class="px-2.5 py-1 rounded-full text-[10px] font-black bg-emerald-100 text-emerald-800 border border-emerald-300">RECEIVED</span>{% elif x.item_status == 'Partial' %}<span class="px-2.5 py-1 rounded-full text-[10px] font-black bg-blue-100 text-blue-800 border border-blue-300">PARTIAL</span>{% else %}<span class="px-2.5 py-1 rounded-full text-[10px] font-black bg-amber-100 text-amber-800 border border-amber-300">PENDING</span>{% endif %}</td>
+                    <td class="px-3 py-3 font-mono">{% if x.date_received %}{{ x.date_received|date:"d-M-Y" }} <span class="report-time">{{ x.date_received|date:"H:i" }}</span>{% else %}—{% endif %}</td>
+                    <td class="px-3 py-3 text-slate-600">{{ x.remarks|default:"—" }}</td>
+                </tr>
+                {% empty %}<tr><td colspan="10" class="p-8 text-center text-slate-400 font-bold">No purchase request items found.</td></tr>{% endfor %}
+            </tbody>
+            {% endif %}
+
+            <!-- Clickable Staff Master Rows (Edit & Delete Inside Popup) -->
+            {% if tab == 'staff' %}
+            <thead>
+                <tr><th class="px-5 py-3.5">Staff No</th><th class="px-5 py-3.5">Full Name (Click to Edit)</th><th class="px-5 py-3.5">Designation</th><th class="px-5 py-3.5">Store Custodian</th><th class="px-5 py-3.5 text-right">Status</th></tr>
+            </thead>
+            <tbody class="divide-y divide-slate-200 font-bold">
+                {% for x in rows %}
+                <tr class="hover:bg-emerald-50/50 transition cursor-pointer" onclick="openEditStaff('{{ x.staff_no }}', '{{ x.name }}', '{{ x.designation }}', '{{ x.phone|default:'' }}', {{ x.is_store_custodian|yesno:'true,false' }})">
+                    <td class="px-5 py-3 font-mono font-black text-slate-950">
+                        <span class="px-2.5 py-1 rounded-xl text-xs font-black bg-slate-100 text-slate-900 border border-slate-300">[{{ x.staff_no }}]</span>
+                    </td>
+                    <td class="px-5 py-3 font-black text-slate-950">{{ x.name }}</td>
+                    <td class="px-5 py-3 text-slate-700">{{ x.designation|default:"Staff Member" }}</td>
+                    <td class="px-5 py-3">
+                        {% if x.is_store_custodian %}
+                        <span class="text-emerald-700 font-black"><i class="fa-solid fa-circle-check mr-1"></i> Custodian</span>
+                        {% else %}
+                        <span class="text-slate-400">Technician</span>
+                        {% endif %}
+                    </td>
+                    <td class="px-5 py-3 text-right">
+                        <span class="px-2.5 py-1 bg-emerald-50 text-emerald-950 border border-emerald-200 rounded font-black text-[10px]">ACTIVE</span>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="5" class="p-8 text-center text-slate-400 font-bold">No staff records.</td></tr>
+                {% endfor %}
+            </tbody>
+            {% endif %}
+
+            {% if tab == 'issues' %}
+            <thead>
+                <tr><th class="px-5 py-3.5">Date</th><th class="px-5 py-3.5">Material</th><th class="px-5 py-3.5">Qty</th><th class="px-5 py-3.5">Issued By</th><th class="px-5 py-3.5">Received By</th><th class="px-5 py-3.5">Project</th><th class="px-5 py-3.5">Reference</th><th class="px-5 py-3.5 text-center w-16">
+    <label class="inline-flex items-center justify-center cursor-pointer" title="Select all material issues today">
+        <input type="checkbox" id="selectTodayMaterialsHeader" class="h-4 w-4 accent-emerald-600">
+    </label>
+</th></tr>
+            </thead>
+            <tbody class="divide-y divide-slate-200 font-bold">
+                {% for x in rows %}
+                <tr class="hover:bg-emerald-50/50 transition">
+                    <td class="px-5 py-3 font-mono text-slate-900">{{ x.date|date:"d-M-Y" }} <span class="report-time">{{ x.date|date:"H:i" }}</span></td>
+                    <td class="px-5 py-3">
+                        <span class="px-2 py-0.5 rounded text-xs font-black bg-purple-100 text-purple-950 border border-purple-300 font-mono">[{{ x.material.material_code }}]</span>
+                        <span class="text-slate-800 font-sans block mt-1 text-xs font-bold">{{ x.material.description }}</span>
+                    </td>
+                    <td class="px-5 py-3 font-mono font-black text-purple-700">{{ x.quantity }} {{ x.material.unit|upper }}</td>
+                    <td class="px-5 py-3">{{ x.issued_by|staff_display }}</td>
+                    <td class="px-5 py-3">
+                        {% if x.received_by %}{{ x.received_by|staff_display }}{% elif x.staff %}{{ x.staff.formatted_name|staff_display }}{% else %}—{% endif %}
+                    </td>
+                    <td class="px-5 py-3">{{ x.project.project_name|default:"Workshop F20" }}</td>
+                    <td class="px-5 py-3 font-mono">{{ x.reference_no|default:"—" }}</td>
+                    <td class="px-5 py-3 text-center"><input type="checkbox" name="selected_material_tx" value="{{ x.id }}" data-today="{% if x.date|date:'Y-m-d' == today|date:'Y-m-d' %}1{% else %}0{% endif %}" class="material-gp-checkbox" form="materialGatePassForm" title="Select for Material Gate Pass"></td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="8" class="p-8 text-center text-slate-400 font-bold">No material issues found.</td></tr>
+                {% endfor %}
+            </tbody>
+            {% endif %}
+
+            {% if tab == 'receipts' %}
+            <thead>
+                <tr><th class="px-5 py-3.5">Date</th><th class="px-5 py-3.5">Material</th><th class="px-5 py-3.5">Qty</th><th class="px-5 py-3.5">Supplier</th><th class="px-5 py-3.5">GRN No</th><th class="px-5 py-3.5">Delivery Note</th><th class="px-5 py-3.5">Delivered By</th><th class="px-5 py-3.5">Received By</th></tr>
+            </thead>
+            <tbody class="divide-y divide-slate-200 font-bold">
+                {% for x in rows %}
+                <tr class="hover:bg-emerald-50/50 transition">
+                    <td class="px-5 py-3 font-mono text-slate-900">{{ x.date|date:"d-M-Y" }} <span class="report-time">{{ x.date|date:"H:i" }}</span></td>
+                    <td class="px-5 py-3">
+                        <span class="px-2 py-0.5 rounded text-xs font-black bg-purple-100 text-purple-950 border border-purple-300 font-mono">[{{ x.material.material_code }}]</span>
+                        <span class="text-slate-800 font-sans block mt-1 text-xs font-bold">{{ x.material.description }}</span>
+                    </td>
+                    <td class="px-5 py-3 font-mono font-black text-emerald-700">+{{ x.quantity }} {{ x.material.unit|upper }}</td>
+                    <td class="px-5 py-3">{{ x.supplier.company_name|default:"Direct Store Purchase" }}</td>
+                    <td class="px-5 py-3 font-mono">{{ x.reference_no|default:"—" }}</td>
+                    <td class="px-5 py-3 font-mono">{{ x.delivery_note_no|default:"—" }}</td>
+                    <td class="px-5 py-3">{{ x.received_by|default:"—" }}</td>
+                    <td class="px-5 py-3">{{ x.issued_by|staff_display }}</td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="8" class="p-8 text-center text-slate-400 font-bold">No receipts found.</td></tr>
+                {% endfor %}
+            </tbody>
+            {% endif %}
+
+            {% if tab == 'materialreturns' %}
+            <thead>
+                <tr><th class="px-5 py-3.5">Date</th><th class="px-5 py-3.5">Material</th><th class="px-5 py-3.5">Qty</th><th class="px-5 py-3.5">Returned By</th><th class="px-5 py-3.5">Received By</th><th class="px-5 py-3.5">Project</th><th class="px-5 py-3.5">Reference</th></tr>
+            </thead>
+            <tbody class="divide-y divide-slate-200 font-bold">
+                {% for x in rows %}
+                <tr class="hover:bg-emerald-50/50 transition">
+                    <td class="px-5 py-3 font-mono text-slate-900">{{ x.date|date:"d-M-Y" }} <span class="report-time">{{ x.date|date:"H:i" }}</span></td>
+                    <td class="px-5 py-3">
+                        <span class="px-2 py-0.5 rounded text-xs font-black bg-purple-100 text-purple-950 border border-purple-300 font-mono">[{{ x.material.material_code }}]</span>
+                        <span class="text-slate-800 font-sans block mt-1 text-xs font-bold">{{ x.material.description }}</span>
+                    </td>
+                    <td class="px-5 py-3 font-mono font-black text-indigo-700">+{{ x.quantity }} {{ x.material.unit|upper }}</td>
+                    <td class="px-5 py-3">
+                        {% if x.received_by %}{{ x.received_by|staff_display }}{% elif x.staff %}{{ x.staff.formatted_name|staff_display }}{% else %}—{% endif %}
+                    </td>
+                    <td class="px-5 py-3">{{ x.issued_by|staff_display }}</td>
+                    <td class="px-5 py-3">{{ x.project.project_name|default:"Site Handover" }}</td>
+                    <td class="px-5 py-3 font-mono">{{ x.reference_no|default:"—" }}</td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="7" class="p-8 text-center text-slate-400 font-bold">No material returns found.</td></tr>
+                {% endfor %}
+            </tbody>
+            {% endif %}
+
+            {% if tab == 'suppliers' %}
+            <thead>
+                <tr>
+                    <th class="px-5 py-3.5">Code</th>
+                    <th class="px-5 py-3.5">Supplier</th>
+                    <th class="px-5 py-3.5">Contact Person</th>
+                    <th class="px-5 py-3.5">Address Location</th>
+                    <th class="px-5 py-3.5">Status</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-200 font-bold">
+                {% for x in rows %}
+                <tr onclick="openEditSupplier('{{ x.supplier_code|escapejs }}','{{ x.company_name|escapejs }}','{{ x.contact_person|default:''|escapejs }}','{{ x.phone|default:''|escapejs }}','{{ x.email|default:''|escapejs }}','{{ x.address|default:''|escapejs }}')" class="hover:bg-emerald-50/50 transition cursor-pointer">
+                    <td class="px-5 py-3 font-mono font-black text-slate-950">{{ x.supplier_code }}</td>
+                    <td class="px-5 py-3">
+                        <b class="font-black text-slate-950 block">{{ x.company_name }}</b>
+                        <small class="font-mono text-emerald-800">{{ x.email|default:"No email" }}</small>
+                    </td>
+                    <td class="px-5 py-3">
+                        {{ x.contact_person|default:"—" }}
+                        <small class="block font-mono text-slate-600">{{ x.phone|default:"—" }}</small>
+                    </td>
+                    <td class="px-5 py-3 font-medium text-slate-700">{{ x.address|default:"Dubai, UAE" }}</td>
+                    <td class="px-5 py-3">
+                        <span class="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-emerald-100 text-emerald-950 border border-emerald-300">Active</span>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="5" class="p-8 text-center text-slate-400 font-bold">No suppliers found.</td></tr>
+            {% endfor %}
+            </tbody>
+            {% endif %}
+
+            {% if tab == 'projects' %}
+            <thead><tr><th class="px-5 py-3.5">Code</th><th class="px-5 py-3.5">Project</th><th class="px-5 py-3.5">Client</th><th class="px-5 py-3.5">Location</th><th class="px-5 py-3.5">Start</th><th class="px-5 py-3.5">Completion</th><th class="px-5 py-3.5">Status</th></tr></thead>
+            <tbody class="divide-y divide-slate-200 font-bold">
+                {% for x in rows %}
+                <tr onclick="openEditProject('{{ x.project_code|escapejs }}','{{ x.project_name|escapejs }}','{{ x.client_name|escapejs }}','{{ x.location|escapejs }}','{{ x.status|escapejs }}','{{ x.start_date|date:'Y-m-d' }}','{{ x.completion_date|date:'Y-m-d' }}')" class="hover:bg-emerald-50/50 transition cursor-pointer">
+                    <td class="px-5 py-3 font-mono font-black text-amber-800">{{ x.project_code }}</td>
+                    <td class="px-5 py-3 font-black text-slate-950">{{ x.project_name }}</td>
+                    <td class="px-5 py-3">{{ x.client_name }}</td>
+                    <td class="px-5 py-3">{{ x.location }}</td>
+                    <td class="px-5 py-3 font-mono">{{ x.start_date|date:"d-M-Y" }}</td>
+                    <td class="px-5 py-3 font-mono">{{ x.completion_date|date:"d-M-Y"|default:"—" }}</td>
+                    <td class="px-5 py-3"><span class="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-emerald-100 text-emerald-950 border border-emerald-300">{{ x.status }}</span></td>
+                </tr>
+                {% empty %}<tr><td colspan="7" class="p-8 text-center text-slate-400 font-bold">No projects found.</td></tr>{% endfor %}
+            </tbody>
+            {% endif %}
+
+            {% if tab == 'deleted' %}
+            <thead>
+                <tr><th class="px-5 py-3.5">Deleted At</th><th class="px-5 py-3.5">Type</th><th class="px-5 py-3.5">Record Key</th><th class="px-5 py-3.5">Description</th><th class="px-5 py-3.5">Status</th></tr>
+            </thead>
+            <tbody class="divide-y divide-slate-200 font-bold">
+                {% for x in rows %}
+                <tr class="hover:bg-rose-50/50 transition">
+                    <td class="px-5 py-3 font-mono text-slate-900">{{ x.deleted_at|date:"d-M-Y" }} <span class="report-time">{{ x.deleted_at|date:"H:i" }}</span></td>
+                    <td class="px-5 py-3 font-black text-rose-700">{{ x.record_type }}</td>
+                    <td class="px-5 py-3 font-mono font-black text-slate-950">{{ x.record_key }}</td>
+                    <td class="px-5 py-3">{{ x.label }}</td>
+                    <td class="px-5 py-3">
+                        <span class="px-2.5 py-0.5 rounded text-[10px] font-black bg-rose-100 text-rose-950 border border-rose-300">ARCHIVED</span>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="5" class="p-8 text-center text-slate-400 font-bold">No deleted records.</td></tr>
+                {% endfor %}
+            </tbody>
+            {% endif %}
+
+        </table>
+        {% if page_obj.paginator.num_pages > 1 %}
+        <div class="report-pagination-inline">
+            <span class="text-xs font-black text-slate-600">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }} · {{ filtered_count }} records</span>
+            <div class="flex items-center gap-2">
+                {% if page_obj.has_previous %}<a class="btn-3d-slate px-3 py-1.5 rounded-xl text-xs font-black" href="?{% if report_querystring %}{{ report_querystring }}&{% endif %}page={{ page_obj.previous_page_number }}">Previous</a>{% endif %}
+                {% if page_obj.has_next %}<a class="btn-3d-emerald px-3 py-1.5 rounded-xl text-xs font-black" href="?{% if report_querystring %}{{ report_querystring }}&{% endif %}page={{ page_obj.next_page_number }}">Next</a>{% endif %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+</div>
+
+<!-- Add Tool popup -->
+<div id="addToolModal" class="hidden fixed inset-0 bg-slate-950/65 backdrop-blur-sm z-50 flex items-center justify-center p-6">
+  <div class="bg-white rounded-3xl p-8 border-2 border-slate-300 shadow-2xl">
+    <div class="flex justify-between items-center mb-5"><h3 class="text-lg font-black text-amber-950"><i class="fa-solid fa-toolbox mr-2 text-amber-700"></i>Add Tool to Register</h3><button type="button" onclick="closeModal('addToolModal')" class="text-2xl font-black">&times;</button></div>
+    <form method="POST" class="space-y-4">{% csrf_token %}<input type="hidden" name="action" value="add_tool">
+      <div class="grid grid-cols-2 gap-4"><div><label>Tool Number</label><input name="tool_no" required placeholder="KS-TO-0001" class="w-full px-4 py-2"></div><div><label>Tool Name</label><input name="tool_name" required class="w-full px-4 py-2"></div><div><label>Store Location</label><input name="store_location" value="F20" required class="w-full px-4 py-2"></div><div><label>Calibration Due</label><input type="date" name="calibration_due_date" class="w-full px-4 py-2"></div></div>
+      <div><label>Status</label><select name="status" class="w-full px-4 py-2"><option value="Available">Available</option><option value="Maintenance">Maintenance / U/S</option><option value="Scrapped">Scrapped</option></select></div>
+      <div class="flex justify-between gap-2 pt-5 border-t-2"><button type="reset" class="btn-3d-rose px-5 py-3 rounded-xl font-black"><i class="fa-solid fa-trash mr-1"></i>Delete / Clear</button><div class="space-x-2"><button type="button" onclick="closeModal('addToolModal')" class="btn-3d-slate px-5 py-3 rounded-xl font-black">Cancel</button><button type="submit" class="btn-3d-amber px-6 py-3 rounded-xl font-black">Save Tool</button></div></div>
+    </form>
+  </div>
+</div>
+
+<!-- Add Supplier popup -->
+<div id="addSupplierModal" class="hidden fixed inset-0 bg-slate-950/65 backdrop-blur-sm z-50 flex items-center justify-center p-6">
+  <div class="bg-white rounded-3xl p-8 border-2 border-slate-300 shadow-2xl">
+    <div class="flex justify-between items-center mb-5"><h3 class="text-lg font-black text-blue-950"><i class="fa-solid fa-building-circle-check mr-2 text-blue-700"></i>Add New Supplier</h3><button type="button" onclick="closeModal('addSupplierModal')" class="text-2xl font-black">&times;</button></div>
+    <form method="POST" class="space-y-4">{% csrf_token %}<input type="hidden" name="action" value="create_supplier">
+      <div class="grid grid-cols-2 gap-4"><div><label>Supplier Code</label><input name="supplier_code" required placeholder="SUP-001" class="w-full px-4 py-2"></div><div><label>Company Name</label><input name="company_name" required class="w-full px-4 py-2"></div><div><label>Contact Person</label><input name="contact_person" class="w-full px-4 py-2"></div><div><label>Phone</label><input name="phone" class="w-full px-4 py-2"></div></div>
+      <div><label>Email</label><input type="email" name="email" class="w-full px-4 py-2"></div><div><label>Address</label><textarea name="address" class="w-full px-4 py-2"></textarea></div>
+      <div class="flex justify-end gap-2 pt-5 border-t-2"><button type="button" onclick="closeModal('addSupplierModal')" class="btn-3d-slate px-5 py-3 rounded-xl font-black">Cancel</button><button class="btn-3d-indigo px-6 py-3 rounded-xl font-black">Save Supplier</button></div>
+    </form>
+  </div>
+</div>
+
+<!-- Add Project / Site popup -->
+<div id="addProjectModal" class="hidden fixed inset-0 bg-slate-950/65 backdrop-blur-sm z-50 flex items-center justify-center p-6">
+  <div class="bg-white rounded-3xl p-8 border-2 border-slate-300 shadow-2xl">
+    <div class="flex justify-between items-center mb-5"><h3 class="text-lg font-black text-amber-950"><i class="fa-solid fa-location-dot mr-2 text-amber-700"></i>Add New Project / Site</h3><button type="button" onclick="closeModal('addProjectModal')" class="text-2xl font-black">&times;</button></div>
+    <form method="POST" class="space-y-4">{% csrf_token %}<input type="hidden" name="action" value="create_project">
+      <div class="grid grid-cols-2 gap-4"><div><label>Project Code</label><input name="project_code" required placeholder="PRJ-001" class="w-full px-4 py-2"></div><div><label>Project Name</label><input name="project_name" required class="w-full px-4 py-2"></div><div><label>Client Name</label><input name="client_name" required class="w-full px-4 py-2"></div><div><label>Location</label><input name="location" value="Dubai, UAE" required class="w-full px-4 py-2"></div><div><label>Start Date</label><input type="date" name="start_date" class="w-full px-4 py-2"></div><div><label>Completion Date</label><input type="date" name="completion_date" class="w-full px-4 py-2"></div></div>
+      <div><label>Status</label><select name="status" class="w-full px-4 py-2"><option value="Active">Active</option><option value="On Hold">On Hold</option><option value="Completed">Completed</option></select></div>
+      <div class="flex justify-between gap-2 pt-5 border-t-2"><button type="reset" class="btn-3d-rose px-5 py-3 rounded-xl font-black"><i class="fa-solid fa-trash mr-1"></i>Delete / Clear</button><div class="space-x-2"><button type="button" onclick="closeModal('addProjectModal')" class="btn-3d-slate px-5 py-3 rounded-xl font-black">Cancel</button><button class="btn-3d-amber px-6 py-3 rounded-xl font-black">Save Project</button></div></div>
+    </form>
+  </div>
+</div>
+
+<!-- Unified row editors -->
+<div id="editToolModal" class="hidden fixed inset-0 bg-slate-950/65 backdrop-blur-sm z-50 flex items-center justify-center p-6">
+  <div class="bg-white rounded-3xl p-8 border-2 border-slate-300 shadow-2xl">
+    <div class="flex justify-between items-center border-b-2 pb-4 mb-5"><h3 class="text-lg font-black">Edit Tool</h3><button type="button" onclick="closeModal('editToolModal')" class="text-2xl font-black">&times;</button></div>
+    <form method="POST" class="space-y-4">{% csrf_token %}<input type="hidden" name="tool_no" id="rToolNo">
+      <div class="grid grid-cols-2 gap-4"><div><label>Tool No</label><input id="rToolNoDisplay" readonly class="w-full px-4 py-2"></div><div><label>Tool Name</label><input name="tool_name" id="rToolName" required class="w-full px-4 py-2"></div></div>
+      <div class="grid grid-cols-2 gap-4"><div><label>Store Location</label><input name="store_location" id="rToolLocation" required class="w-full px-4 py-2"></div><div><label>Serial No</label><input name="serial_no" id="rToolSerial" class="w-full px-4 py-2"></div></div>
+      <div class="grid grid-cols-2 gap-4"><div><label>Status</label><select name="status" id="rToolStatus" class="w-full px-4 py-2"><option value="Available">Serviceable</option><option value="Issued">Issued</option><option value="Maintenance">Unserviceable</option><option value="Scrapped">Scrapped</option></select></div><div><label>Calibration Due</label><input type="date" name="calibration_due_date" id="rToolCal" class="w-full px-4 py-2"></div></div>
+      <div class="flex justify-between pt-5 border-t-2"><button name="action" value="delete_tool" onclick="return confirm('Delete this tool?')" class="btn-3d-rose px-5 py-3 rounded-xl font-black">Delete</button><div class="space-x-2"><button type="button" onclick="closeModal('editToolModal')" class="btn-3d-slate px-5 py-3 rounded-xl font-black">Cancel</button><button name="action" value="edit_tool" class="btn-3d-emerald px-6 py-3 rounded-xl font-black">Update Tool</button></div></div>
+    </form>
+  </div>
+</div>
+
+<div id="editMaterialModal" class="hidden fixed inset-0 bg-slate-950/65 backdrop-blur-sm z-50 flex items-center justify-center p-6">
+  <div class="bg-white rounded-3xl p-8 border-2 border-slate-300 shadow-2xl"><div class="flex justify-between items-center border-b-2 pb-4 mb-5"><h3 class="text-lg font-black">Edit Material Stock</h3><button type="button" onclick="closeModal('editMaterialModal')" class="text-2xl font-black">&times;</button></div>
+    <form method="POST" class="space-y-4">{% csrf_token %}<input type="hidden" name="material_code" id="rMatCode">
+      <div class="grid grid-cols-2 gap-4"><div><label>Material Code</label><input id="rMatCodeDisplay" readonly class="w-full px-4 py-2"></div><div><label>Description</label><input name="description" id="rMatDesc" required class="w-full px-4 py-2"></div></div>
+      <div><label>Specification</label><input name="specification" id="rMatSpec" class="w-full px-4 py-2"></div>
+      <div class="grid grid-cols-2 gap-4"><div><label>Current Stock</label><input type="number" name="current_stock" id="rMatStock" required class="w-full px-4 py-2"></div><div><label>Unit</label><input name="unit" id="rMatUnit" required class="w-full px-4 py-2"></div><div><label>Low Stock Alert</label><input type="number" name="min_stock_alert" id="rMatMin" required class="w-full px-4 py-2"></div><div><label>Store Location</label><input name="store_location" id="rMatLocation" required class="w-full px-4 py-2"></div></div>
+      <div class="flex justify-between pt-5 border-t-2"><button name="action" value="delete_material" onclick="return confirm('Delete this material?')" class="btn-3d-rose px-5 py-3 rounded-xl font-black">Delete</button><div class="space-x-2"><button type="button" onclick="closeModal('editMaterialModal')" class="btn-3d-slate px-5 py-3 rounded-xl font-black">Cancel</button><button name="action" value="edit_material" class="btn-3d-emerald px-6 py-3 rounded-xl font-black">Update Material</button></div></div>
+    </form>
+  </div>
+</div>
+
+<div id="editSupplierModal" class="hidden fixed inset-0 bg-slate-950/65 backdrop-blur-sm z-50 flex items-center justify-center p-6">
+  <div class="bg-white rounded-3xl p-8 border-2 border-slate-300 shadow-2xl"><div class="flex justify-between items-center border-b-2 pb-4 mb-5"><h3 class="text-lg font-black">Edit Supplier</h3><button type="button" onclick="closeModal('editSupplierModal')" class="text-2xl font-black">&times;</button></div>
+    <form method="POST" class="space-y-4">{% csrf_token %}<input type="hidden" name="supplier_code" id="rSupCode">
+      <div class="grid grid-cols-2 gap-4"><div><label>Supplier Code</label><input id="rSupCodeDisplay" readonly class="w-full px-4 py-2"></div><div><label>Company Name</label><input name="company_name" id="rSupName" required class="w-full px-4 py-2"></div><div><label>Contact Person</label><input name="contact_person" id="rSupContact" class="w-full px-4 py-2"></div><div><label>Phone</label><input name="phone" id="rSupPhone" class="w-full px-4 py-2"></div></div>
+      <div><label>Email</label><input type="email" name="email" id="rSupEmail" class="w-full px-4 py-2"></div><div><label>Address</label><textarea name="address" id="rSupAddress" class="w-full px-4 py-2"></textarea></div>
+      <div class="flex justify-between pt-5 border-t-2"><button name="action" value="delete_supplier" onclick="return confirm('Delete this supplier?')" class="btn-3d-rose px-5 py-3 rounded-xl font-black">Delete</button><div class="space-x-2"><button type="button" onclick="closeModal('editSupplierModal')" class="btn-3d-slate px-5 py-3 rounded-xl font-black">Cancel</button><button name="action" value="edit_supplier" class="btn-3d-emerald px-6 py-3 rounded-xl font-black">Update Supplier</button></div></div>
+    </form>
+  </div>
+</div>
+
+<div id="editProjectModal" class="hidden fixed inset-0 bg-slate-950/65 backdrop-blur-sm z-50 flex items-center justify-center p-6">
+  <div class="bg-white rounded-3xl p-8 border-2 border-slate-300 shadow-2xl"><div class="flex justify-between items-center border-b-2 pb-4 mb-5"><h3 class="text-lg font-black">Edit Project</h3><button type="button" onclick="closeModal('editProjectModal')" class="text-2xl font-black">&times;</button></div>
+    <form method="POST" class="space-y-4">{% csrf_token %}<input type="hidden" name="project_code" id="rPrjCode">
+      <div class="grid grid-cols-2 gap-4"><div><label>Project Code</label><input id="rPrjCodeDisplay" readonly class="w-full px-4 py-2"></div><div><label>Project Name</label><input name="project_name" id="rPrjName" required class="w-full px-4 py-2"></div><div><label>Client</label><input name="client_name" id="rPrjClient" required class="w-full px-4 py-2"></div><div><label>Location</label><input name="location" id="rPrjLocation" required class="w-full px-4 py-2"></div><div><label>Start Date</label><input type="date" name="start_date" id="rPrjStart" class="w-full px-4 py-2"></div><div><label>Completion Date</label><input type="date" name="completion_date" id="rPrjEnd" class="w-full px-4 py-2"></div></div>
+      <div><label>Status</label><select name="status" id="rPrjStatus" class="w-full px-4 py-2"><option>Active</option><option>Completed</option><option>On Hold</option></select></div>
+      <div class="flex justify-between pt-5 border-t-2"><button name="action" value="delete_project" onclick="return confirm('Delete this project?')" class="btn-3d-rose px-5 py-3 rounded-xl font-black">Delete</button><div class="space-x-2"><button type="button" onclick="closeModal('editProjectModal')" class="btn-3d-slate px-5 py-3 rounded-xl font-black">Cancel</button><button name="action" value="edit_project" class="btn-3d-emerald px-6 py-3 rounded-xl font-black">Update Project</button></div></div>
+    </form>
+  </div>
+</div>
+
+<!-- Modal: Purchase Request Detailed Requisition Sheet (Email / WhatsApp / PDF Triggers) -->
+<div id="prDetailModal" class="hidden fixed inset-0 bg-slate-950/65 backdrop-blur-sm z-50 flex items-center justify-center p-6">
+    <div class="bg-white rounded-3xl max-w-3xl w-full p-8 border-2 border-slate-300 shadow-2xl flex flex-col justify-between max-h-[90vh] overflow-y-auto app-scroll">
+        <div>
+            <div class="flex items-center justify-between pb-4 border-b-2 border-slate-200 mb-5">
+                <div>
+                    <span class="text-xs uppercase font-black text-purple-700 bg-purple-100 px-3 py-1 rounded-xl border border-purple-300">PURCHASE REQUISITION</span>
+                    <h3 id="prModalNumber" class="text-2xl font-black font-mono text-slate-950 mt-1">PR-KEN-XXXXXX</h3>
+                </div>
+                <button type="button" onclick="document.getElementById('prDetailModal').classList.add('hidden')" class="text-slate-400 hover:text-slate-800 text-2xl font-black">&times;</button>
+            </div>
+
+            <div class="grid grid-cols-3 gap-4 bg-slate-50 p-4 rounded-2xl border border-slate-200 text-xs mb-5">
+                <div>
+                    <span class="text-slate-400 font-bold block">GENERATED BY</span>
+                    <b id="prModalSender" class="text-slate-900 font-black text-sm">UUDS-804, Manuja Shehan</b>
+                </div>
+                <div>
+                    <span class="text-slate-400 font-bold block">DATE CREATED</span>
+                    <b id="prModalDate" class="text-slate-900 font-mono text-sm">--</b>
+                </div>
+                <div>
+                    <span class="text-slate-400 font-bold block">STATUS</span>
+                    <span id="prModalStatus" class="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-amber-100 text-amber-950 border border-amber-300 inline-block mt-0.5">Submitted</span>
+                </div>
+            </div>
+
+            <div class="mb-5">
+                <label class="block text-xs font-black uppercase text-slate-600 mb-1">Scope & Requisition Notes</label>
+                <div id="prModalNotes" class="bg-slate-100/80 p-3 rounded-xl border border-slate-200 text-xs font-bold text-slate-800"></div>
+            </div>
+
+            <div class="border-2 border-slate-200 rounded-2xl overflow-hidden mb-6">
+                <table id="prItemsTable" class="w-full text-left text-xs">
+                    <thead class="bg-gradient-to-r from-[#e0f2fe] to-[#bae6fd] border-b-2 border-[#7dd3fc]">
+                        <tr>
+                            <th class="p-3 text-[#0c4a6e] font-black uppercase">Material Code</th>
+                            <th class="p-3 text-[#0c4a6e] font-black uppercase">Description</th>
+                            <th class="p-3 text-[#0c4a6e] font-black uppercase">Current Store Stock</th>
+                            <th class="p-3 text-[#0c4a6e] font-black uppercase">Requisition Qty</th>
+                        </tr>
+                    </thead>
+                    <tbody id="prItemsTableBody" class="divide-y divide-slate-200 font-bold">
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="flex flex-wrap items-center justify-between gap-3 pt-4 border-t-2 border-slate-200">
+            <div class="flex items-center space-x-2">
+                <a id="prEmailLink" href="#" target="_blank" class="btn-3d-purple px-4 py-2.5 rounded-xl text-xs font-black flex items-center space-x-2 shadow-md">
+                    <i class="fa-solid fa-envelope text-sm"></i> <span>Send Email to Procurement</span>
+                </a>
+                <a id="prWhatsAppLink" href="#" target="_blank" class="btn-3d-emerald px-4 py-2.5 rounded-xl text-xs font-black flex items-center space-x-2 shadow-md">
+                    <i class="fa-brands fa-whatsapp text-sm"></i> <span>Share on WhatsApp</span>
+                </a>
+            </div>
+            <div class="flex items-center space-x-2">
+                <button onclick="exportReportToPDF('Purchase_Order', 'prItemsTable')" class="btn-3d-rose px-4 py-2.5 rounded-xl text-xs font-black flex items-center space-x-2 shadow-md">
+                    <i class="fa-solid fa-file-pdf"></i> <span>Export PDF</span>
+                </button>
+                <button type="button" onclick="document.getElementById('prDetailModal').classList.add('hidden')" class="btn-3d-slate px-4 py-2.5 rounded-xl text-xs font-black">
+                    Close
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Custom Multi-Item Purchase Request with Multi-Selection & Editable Quantities -->
+<div id="newPRModal" class="hidden fixed inset-0 bg-slate-950/60 backdrop-blur-sm z-50 flex items-center justify-center p-6">
+    <div class="bg-white rounded-3xl max-w-3xl w-full p-8 border-2 border-slate-300 shadow-2xl max-h-[90vh] overflow-y-auto app-scroll">
+        <div class="pr-modal-head flex items-center justify-between p-4 mb-5 rounded-2xl">
+            <h3 class="text-base font-black uppercase text-slate-950 flex items-center">
+                <i class="fa-solid fa-clipboard-list text-purple-600 mr-2.5 text-lg"></i> Create Purchase Request (PR)
+            </h3>
+            <button type="button" onclick="document.getElementById('newPRModal').classList.add('hidden')" class="text-slate-400 hover:text-slate-800 text-xl font-black">&times;</button>
+        </div>
+        <form method="POST" class="pr-modal-body">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="create_custom_pr">
+            <div class="pr-picker-card">
+                <label class="block text-xs font-black uppercase tracking-wider text-slate-900 mb-2"><i class="fa-solid fa-boxes-stacked text-purple-600 mr-1.5"></i>Select Materials to Reorder</label>
+                <select id="prMaterialSelector" class="searchable-select w-full" onchange="addPRMaterialFromPicker(this)">
+                    <option value="">-- Select material to add --</option>
+                    {% for m in all_materials %}
+                    <option value="{{ m.material_code }}" data-unit="{{ m.unit|upper }}" data-desc="{{ m.description }}" data-stock="{{ m.current_stock }}">
+                        [{{ m.material_code }}] — {{ m.description }} (Current: {{ m.current_stock }} {{ m.unit|upper }})
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- Dynamic Editable Quantity Input Rows -->
+            <div id="prQuantitiesContainer" class="space-y-2 pt-2"></div>
+
+            <div class="pr-remarks-block">
+                <label class="block text-xs font-black uppercase tracking-wider text-slate-900 mb-2">Requisition Remarks & Justification</label>
+                <textarea name="notes" rows="1" placeholder="e.g. Stock replenishment for upcoming project site phases..." class="input-3d-bevel-large w-full text-xs text-slate-950 font-bold focus:outline-none"></textarea>
+            </div>
+            <div class="pr-modal-actions flex items-center justify-end space-x-3 border-t-2 border-slate-100">
+                <button type="button" onclick="document.getElementById('newPRModal').classList.add('hidden')" class="btn-3d-slate px-5 py-3 rounded-2xl text-xs font-black">Cancel</button>
+                <button type="submit" class="btn-3d-purple px-7 py-3 rounded-2xl text-xs font-black text-white cursor-pointer shadow-md">Create Purchase Order</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Modal: Add New Staff Member -->
+<div id="addStaffModal" class="hidden fixed inset-0 bg-slate-950/60 backdrop-blur-sm z-50 flex items-center justify-center p-6">
+    <div class="bg-white rounded-3xl max-w-lg w-full p-7 border-2 border-slate-300 shadow-2xl">
+        <div class="flex items-center justify-between pb-3 border-b-2 border-slate-100 mb-4">
+            <h3 class="text-sm font-black uppercase text-slate-950">Register New Staff Member</h3>
+            <button type="button" onclick="document.getElementById('addStaffModal').classList.add('hidden')" class="text-slate-400 hover:text-slate-800 text-xl font-black">&times;</button>
+        </div>
+        <form method="POST" class="space-y-3.5">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="create_staff">
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="block text-xs font-bold text-slate-800 mb-1">Staff ID</label>
+                    <input type="text" name="staff_no" required placeholder="e.g. UUDS-805" class="input-3d-bevel-large w-full rounded-xl px-3 py-2 text-xs font-mono font-black">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-800 mb-1">Full Name</label>
+                    <input type="text" name="name" required placeholder="Technician Name" class="input-3d-bevel-large w-full rounded-xl px-3 py-2 text-xs font-bold">
+                </div>
+            </div>
+            <div>
+                <label class="block text-xs font-bold text-slate-800 mb-1">Designation</label>
+                <input type="text" name="designation" required placeholder="e.g. Senior Joinery Technician" class="input-3d-bevel-large w-full rounded-xl px-3 py-2 text-xs font-bold">
+            </div>
+            <div>
+                <label class="block text-xs font-bold text-slate-800 mb-1">Phone Number</label>
+                <input type="text" name="phone" placeholder="+971 50 ..." class="input-3d-bevel-large w-full rounded-xl px-3 py-2 text-xs font-mono font-bold">
+            </div>
+            <div class="flex items-center space-x-2 pt-2">
+                <input type="checkbox" name="is_store_custodian" id="newStaffCustodian" class="w-4 h-4 text-emerald-600 rounded">
+                <label for="newStaffCustodian" class="text-xs font-bold text-slate-800">Authorized Store Custodian</label>
+            </div>
+            <div class="flex items-center justify-end space-x-2 pt-4 border-t">
+                <button type="button" onclick="document.getElementById('addStaffModal').classList.add('hidden')" class="btn-3d-slate px-4 py-2 rounded-xl text-xs font-black">Cancel</button>
+                <button type="submit" class="btn-3d-emerald px-6 py-2 rounded-xl text-xs font-black shadow-md cursor-pointer">Save Staff</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Modal: Edit Staff Member (With Delete Button Inside) -->
+<div id="editStaffModal" class="hidden fixed inset-0 bg-slate-950/60 backdrop-blur-sm z-50 flex items-center justify-center p-6">
+    <div class="bg-white rounded-3xl max-w-lg w-full p-7 border-2 border-slate-300 shadow-2xl">
+        <div class="flex items-center justify-between pb-3 border-b-2 border-slate-100 mb-4">
+            <h3 class="text-sm font-black uppercase text-slate-950">Edit Staff Information</h3>
+            <button type="button" onclick="document.getElementById('editStaffModal').classList.add('hidden')" class="text-slate-400 hover:text-slate-800 text-xl font-black">&times;</button>
+        </div>
+        <form method="POST" class="space-y-3.5">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="edit_staff">
+            <div>
+                <label class="block text-xs font-bold text-slate-800 mb-1">Staff ID</label>
+                <input type="text" name="staff_no" id="editStaffNo" readonly class="input-3d-bevel-large w-full bg-slate-200 rounded-xl px-3 py-2 text-xs font-mono font-black">
+            </div>
+            <div>
+                <label class="block text-xs font-bold text-slate-800 mb-1">Full Name</label>
+                <input type="text" name="name" id="editStaffName" required class="input-3d-bevel-large w-full rounded-xl px-3 py-2 text-xs font-bold">
+            </div>
+            <div>
+                <label class="block text-xs font-bold text-slate-800 mb-1">Designation</label>
+                <input type="text" name="designation" id="editStaffDesignation" required class="input-3d-bevel-large w-full rounded-xl px-3 py-2 text-xs font-bold">
+            </div>
+            <div>
+                <label class="block text-xs font-bold text-slate-800 mb-1">Phone Number</label>
+                <input type="text" name="phone" id="editStaffPhone" class="input-3d-bevel-large w-full rounded-xl px-3 py-2 text-xs font-mono font-bold">
+            </div>
+            <div class="flex items-center space-x-2 pt-2">
+                <input type="checkbox" name="is_store_custodian" id="editStaffCustodian" class="w-4 h-4 text-emerald-600 rounded">
+                <label for="editStaffCustodian" class="text-xs font-bold text-slate-800">Authorized Store Custodian</label>
+            </div>
+            <div class="flex items-center justify-between pt-4 border-t">
+                <button type="button" onclick="deleteCurrentStaff()" class="btn-3d-rose px-4 py-2 rounded-xl text-xs font-black flex items-center space-x-1 cursor-pointer">
+                    <i class="fa-solid fa-trash"></i> <span>Delete</span>
+                </button>
+                <div class="flex items-center space-x-2">
+                    <button type="button" onclick="document.getElementById('editStaffModal').classList.add('hidden')" class="btn-3d-slate px-4 py-2 rounded-xl text-xs font-black">Cancel</button>
+                    <button type="submit" class="btn-3d-emerald px-6 py-2 rounded-xl text-xs font-black shadow-md cursor-pointer">Save Changes</button>
+                </div>
+            </div>
+        </form>
+        <form id="deleteStaffForm" method="POST" class="hidden">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="delete_staff">
+            <input type="hidden" name="staff_no" id="deleteStaffNo">
+        </form>
+    </div>
+</div>
+
+<script>
+    function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
+    function openEditTool(no, name, loc, serial, status, cal) {
+        document.getElementById('rToolNo').value = no; document.getElementById('rToolNoDisplay').value = no;
+        document.getElementById('rToolName').value = name; document.getElementById('rToolLocation').value = loc;
+        document.getElementById('rToolSerial').value = serial; document.getElementById('rToolStatus').value = status;
+        document.getElementById('rToolCal').value = cal; document.getElementById('editToolModal').classList.remove('hidden');
+    }
+    function openEditMaterial(code, desc, spec, stock, unit, min, loc) {
+        document.getElementById('rMatCode').value = code; document.getElementById('rMatCodeDisplay').value = code;
+        document.getElementById('rMatDesc').value = desc; document.getElementById('rMatSpec').value = spec;
+        document.getElementById('rMatStock').value = stock; document.getElementById('rMatUnit').value = unit;
+        document.getElementById('rMatMin').value = min; document.getElementById('rMatLocation').value = loc;
+        document.getElementById('editMaterialModal').classList.remove('hidden');
+    }
+    function openEditSupplier(code, name, contact, phone, email, address) {
+        document.getElementById('rSupCode').value = code; document.getElementById('rSupCodeDisplay').value = code;
+        document.getElementById('rSupName').value = name; document.getElementById('rSupContact').value = contact;
+        document.getElementById('rSupPhone').value = phone; document.getElementById('rSupEmail').value = email;
+        document.getElementById('rSupAddress').value = address; document.getElementById('editSupplierModal').classList.remove('hidden');
+    }
+    function openEditProject(code, name, client, loc, status, start, end) {
+        document.getElementById('rPrjCode').value = code; document.getElementById('rPrjCodeDisplay').value = code;
+        document.getElementById('rPrjName').value = name; document.getElementById('rPrjClient').value = client;
+        document.getElementById('rPrjLocation').value = loc; document.getElementById('rPrjStatus').value = status;
+        document.getElementById('rPrjStart').value = start; document.getElementById('rPrjEnd').value = end;
+        document.getElementById('editProjectModal').classList.remove('hidden');
+    }
+    function openPRDetailModal(prNum, sender, dt, status, notes, itemsRaw) {
+        document.getElementById('prModalNumber').textContent = prNum;
+        document.getElementById('prModalSender').textContent = sender;
+        document.getElementById('prModalDate').textContent = dt;
+        document.getElementById('prModalStatus').textContent = status;
+        document.getElementById('prModalNotes').textContent = notes || 'Standard Store F20 Replenishment Order.';
+
+        const tbody = document.getElementById('prItemsTableBody');
+        tbody.innerHTML = '';
+
+        let items = [];
+        try {
+            items = JSON.parse(itemsRaw);
+        } catch(e) {
+            items = [];
+        }
+
+        let itemsTextList = '';
+        if (items.length > 0) {
+            items.forEach((item, idx) => {
+                const itemUnit = String(item.unit || 'PCS').toUpperCase();
+                itemsTextList += `${idx + 1}. [${item.code}] ${item.desc} — Qty: ${item.reorder_qty} ${itemUnit}\n`;
+                tbody.innerHTML += `
+                    <tr class="hover:bg-slate-50 transition">
+                        <td class="p-3 font-mono font-black text-purple-900">[${item.code}]</td>
+                        <td class="p-3 font-black text-slate-950">${item.desc}</td>
+                        <td class="p-3 font-mono text-slate-700">${item.current_stock} ${itemUnit}</td>
+                        <td class="p-3 font-mono font-black text-emerald-700">${item.reorder_qty} ${itemUnit}</td>
+                    </tr>
+                `;
+            });
+        } else {
+            itemsTextList = 'Requisition items detailed in attached schedule.';
+            tbody.innerHTML = '<tr><td colspan="4" class="p-6 text-center text-slate-400 font-bold">No individual line items parsed. Standard PR envelope created.</td></tr>';
+        }
+
+        const subject = encodeURIComponent(`Purchase Requisition [${prNum}] — Kensova Store F20`);
+        const emailBody = encodeURIComponent(
+            `Dear Procurement Team,\n\nPlease arrange procurement for Purchase Request ${prNum} generated by Store Custodian (${sender}) on ${dt}.\n\nScope / Justification: ${notes}\n\nRequisition Items:\n${itemsTextList}\n\nPlease confirm delivery schedule to Location F20 Store Dubai.\n\nRegards,\n${sender}\nKensova Interiors Operations Suite`
+        );
+        document.getElementById('prEmailLink').href = `mailto:procurement@kensova.ae?subject=${subject}&body=${emailBody}`;
+
+        const waMsg = encodeURIComponent(
+            `*Kensova Interiors — Purchase Request ${prNum}*\nGenerated by: ${sender}\nDate: ${dt}\n\n*Items:*\n${itemsTextList}\nNotes: ${notes}`
+        );
+        document.getElementById('prWhatsAppLink').href = `https://api.whatsapp.com/send?text=${waMsg}`;
+
+        document.getElementById('prDetailModal').classList.remove('hidden');
+    }
+
+    function addPRMaterialFromPicker(selectEl) {
+        const code = selectEl.value;
+        if (!code) return;
+        const opt = selectEl.options[selectEl.selectedIndex];
+        addPRMaterialRow(code, opt.getAttribute('data-unit') || 'PCS', opt.getAttribute('data-desc') || '');
+        if (selectEl.tomselect) { selectEl.tomselect.clear(true); } else { selectEl.value = ''; }
+    }
+
+    function addPRMaterialRow(code, unit, desc) {
+        const container = document.getElementById('prQuantitiesContainer');
+        if (Array.from(container.querySelectorAll('[data-pr-code]')).some(r => r.dataset.prCode === code)) return;
+        const row = document.createElement('div');
+        row.className = 'pr-qty-row flex items-center justify-between bg-slate-50 border border-slate-200 rounded-xl';
+        row.dataset.prCode = code;
+        row.innerHTML = `
+            <input type="hidden" name="selected_materials" value="${code.replace(/"/g,'&quot;')}">
+            <span class="min-w-0 text-xs font-bold text-slate-900"><b class="font-mono text-blue-700">[${code}]</b> ${desc}</span>
+            <div class="flex items-center gap-2 shrink-0">
+                <input type="number" min="1" step="1" name="qty_${code}" value="50" class="input-3d-bevel-large w-24 px-2 py-1 text-xs font-bold text-center font-mono">
+                <span class="text-xs font-bold text-slate-500 uppercase w-10">${unit.toUpperCase()}</span>
+                <button type="button" class="pr-remove-item" title="Remove item" onclick="this.closest('.pr-qty-row').remove()">&times;</button>
+            </div>`;
+        container.appendChild(row);
+    }
+
+    (function(){
+        const checks = () => Array.from(document.querySelectorAll('.material-gp-checkbox'));
+        const selectToday = document.getElementById('selectTodayMaterialsHeader');
+        const gpBtn = document.getElementById('generateMaterialGPBtn');
+        const form = document.getElementById('materialGatePassForm');
+        function syncMaterialGP(){
+            if(!gpBtn || !form) return;
+            const selected = checks().filter(c=>c.checked);
+            gpBtn.disabled = selected.length === 0;
+            if (selectToday) {
+                const todayChecks = checks().filter(c => c.dataset.today === '1');
+                selectToday.checked = todayChecks.length > 0 && todayChecks.every(c => c.checked);
+                selectToday.indeterminate = todayChecks.some(c => c.checked) && !selectToday.checked;
+            }
+        }
+        if(selectToday) selectToday.addEventListener('change', ()=>{
+            const select = selectToday.checked;
+            checks().forEach(c=>{ c.checked = select && c.dataset.today === '1'; });
+            syncMaterialGP();
+        });
+        checks().forEach(c=>c.addEventListener('change', syncMaterialGP));
+        syncMaterialGP();
+    })();
+
+    document.addEventListener('submit', function(e) {
+        if (e.target.closest('#newPRModal') && !document.querySelector('#prQuantitiesContainer input[name="selected_materials"]')) {
+            e.preventDefault();
+            alert('Please select at least one material for the purchase request.');
+        }
+    });
+
+    function openEditStaff(staffNo, name, designation, phone, isCustodian) {
+        document.getElementById('editStaffNo').value = staffNo;
+        document.getElementById('deleteStaffNo').value = staffNo;
+        document.getElementById('editStaffName').value = name;
+        document.getElementById('editStaffDesignation').value = designation;
+        document.getElementById('editStaffPhone').value = phone;
+        document.getElementById('editStaffCustodian').checked = isCustodian;
+        document.getElementById('editStaffModal').classList.remove('hidden');
+    }
+
+    function deleteCurrentStaff() {
+        const staffNo = document.getElementById('editStaffNo').value;
+        if (confirm(`Are you sure you want to delete staff member [${staffNo}]?`)) {
+            document.getElementById('deleteStaffForm').submit();
+        }
+    }
+</script>
+{% endblock %}

@@ -1,0 +1,45 @@
+KENSOVA ERP — DAILY MANAGEMENT REPORT / OUTLOOK SETUP
+
+1. Install/update the ERP virtual environment with the updated requirements.
+   The normal setup_venv.bat can be used for a fresh installation.
+
+2. Make sure Microsoft Outlook Desktop is installed and signed in to the
+   Outlook account that should be used as the sender.
+
+3. Run:
+      install_daily_report_task.bat
+   once as the Windows user whose Outlook profile is signed in.
+
+4. The Windows Scheduled Task will run every day at 7:00 PM (Dubai local
+   time) and send the daily report using the signed-in Outlook Desktop profile.
+
+5. The email recipients are configured exactly as requested:
+   TO:
+     vasudevb@kensova.ae
+     deshanw@kensova.ae
+   CC:
+     prasadn@kensova.ae
+     deshanir@kensova.ae
+     dinushid@kensova.ae
+     anushkaa@kensova.ae
+     gayans@kensova.ae
+     arunaa@kensova.ae
+
+6. The email contains:
+   - Professional PDF daily management report
+   - Excel daily management report
+   - Tools issued today
+   - Tools returned today
+   - Pending tools at end of day
+   - Material issues today
+   - Material receipts today
+   - Material returns today
+
+7. Manual report buttons are available in the ERP sidebar:
+   - Generate Daily Report
+   - Send Daily Report
+
+Important:
+Outlook Desktop must be available to the Windows task. The ERP does not
+store an Outlook password; the email is sent through the signed-in Outlook
+profile on that PC.

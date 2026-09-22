@@ -1,0 +1,276 @@
+{% extends "store_app/base.html" %}
+{% block content %}
+<div class="fixed inset-0 z-50 flex items-center justify-between bg-gradient-to-br from-[#02130e] via-[#052119] to-[#010a07] px-8 sm:px-14 lg:px-24 selection:bg-emerald-500 selection:text-white overflow-hidden select-none">
+    
+    <canvas id="spaceStarsCanvas" class="absolute inset-0 w-full h-full pointer-events-none z-0"></canvas>
+
+    <div class="absolute top-1/4 left-1/4 w-[750px] h-[750px] bg-emerald-500/20 rounded-full blur-[160px] pointer-events-none"></div>
+    <div class="absolute bottom-1/4 right-1/4 w-[700px] h-[700px] bg-teal-400/15 rounded-full blur-[160px] pointer-events-none"></div>
+
+    <style>
+        @keyframes floatKBrand {
+            0%, 100% { transform: translateY(0px) rotateY(0deg); }
+            50% { transform: translateY(-12px) rotateY(10deg); }
+        }
+        @keyframes pulseGlowK {
+            0%, 100% { filter: drop-shadow(0 14px 30px rgba(16, 185, 129, 0.45)); }
+            50% { filter: drop-shadow(0 20px 45px rgba(52, 211, 153, 0.85)); }
+        }
+        .animated-k-brand {
+            perspective: 1000px;
+            animation: floatKBrand 6s ease-in-out infinite, pulseGlowK 4s ease-in-out infinite;
+        }
+
+        .input-login-prominent {
+            background: #ffffff !important;
+            border: 2px solid #cbd5e1 !important;
+            box-shadow: inset 0 3px 6px rgba(15, 23, 42, 0.16), 0 1px 2px rgba(255, 255, 255, 0.9) !important;
+            font-size: 1.5rem !important;
+            line-height: 1.4 !important;
+            min-height: 60px !important;
+            letter-spacing: 0.03em;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .input-login-prominent:focus {
+            border-color: #059669 !important;
+            box-shadow: inset 0 1px 3px rgba(5, 150, 105, 0.1), 0 0 0 4px rgba(16, 185, 129, 0.28) !important;
+        }
+        #staffIdInput {
+            color: #075fc6 !important;
+            font-size: 1.15rem !important;
+            text-shadow: 0 1px 0 rgba(255,255,255,.8);
+        }
+
+        #authLoginForm label {
+            font-size: 0.95rem !important;
+            line-height: 1.35 !important;
+        }
+
+        #staffIdInput::placeholder,
+        #passwordInput::placeholder {
+            font-size: 1.05rem !important;
+        }
+        .login-spinner {
+            width: 18px;
+            height: 18px;
+            border: 2.5px solid rgba(255,255,255,.38);
+            border-top-color: #ffffff;
+            border-radius: 50%;
+            animation: loginSpin .72s linear infinite;
+            display: none;
+            flex: 0 0 auto;
+        }
+        #submitLoginBtn.is-loading .login-spinner { display: inline-block; }
+        #submitLoginBtn.is-loading .login-lock { display: none; }
+        @keyframes loginSpin { to { transform: rotate(360deg); } }
+
+        /* Login feature cards: stronger readable text + distinct colorful icons. */
+        .login-feature-card {
+            color:#e2e8f0 !important;
+            border-color:rgba(148,163,184,.34) !important;
+            background:rgba(8,46,36,.88) !important;
+        }
+        .login-feature-card .login-feature-icon {
+            width:34px; height:34px; border-radius:10px;
+            display:inline-flex; align-items:center; justify-content:center;
+            flex:0 0 auto; font-size:15px;
+            background:rgba(255,255,255,.10);
+            box-shadow:inset 0 1px 0 rgba(255,255,255,.16), 0 3px 8px rgba(0,0,0,.18);
+        }
+        .login-feature-card.material .login-feature-icon { color:#fbbf24; background:rgba(245,158,11,.16); }
+        .login-feature-card.tool .login-feature-icon { color:#60a5fa; background:rgba(59,130,246,.16); }
+        .login-feature-card.report .login-feature-icon { color:#c084fc; background:rgba(168,85,247,.16); }
+        .login-feature-card.material span { color:#fde68a; }
+        .login-feature-card.tool span { color:#bfdbfe; }
+        .login-feature-card.report span { color:#e9d5ff; }
+    </style>
+
+    <div class="relative w-full max-w-[1440px] mx-auto flex flex-col lg:flex-row items-center justify-between gap-12 z-10 my-auto">
+        
+        <div class="text-white space-y-8 max-w-2xl text-left">
+            <div class="flex items-center space-x-7">
+                <div class="animated-k-brand kensova-emblem shrink-0 w-28 h-28 rounded-[2rem] flex items-center justify-center">
+                    <span class="emblem-roof"></span><span class="emblem-k text-6xl">K</span><span class="emblem-floor"></span>
+                </div>
+
+                <div class="inline-flex items-center space-x-3 px-5 py-2.5 rounded-full bg-[#082e24]/90 border border-emerald-500/50 text-emerald-300 text-sm font-black shadow-md">
+                    <i class="fa-regular fa-circle-check text-emerald-400 text-base"></i>
+                    <span>Secure internal operations</span>
+                </div>
+            </div>
+
+            <div class="space-y-3">
+                <h1 class="text-5xl sm:text-6xl lg:text-7xl font-black text-white tracking-tight leading-[1.05] drop-shadow-md">
+                    Kensova Interiors
+                </h1>
+                <h2 class="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-[#34d399] tracking-tight whitespace-nowrap">
+                    Stores & Tools Management System
+                </h2>
+            </div>
+
+            <p class="text-lg sm:text-xl text-emerald-100/90 leading-relaxed font-normal max-w-xl">
+                Live tracking for all tools, store materials, and site deliveries. Manage handovers, project records, and reports from one easy dashboard.
+            </p>
+
+            <div class="grid grid-cols-3 gap-4 pt-3 max-w-xl">
+                <div class="login-feature-card material h-14 flex items-center justify-center space-x-2.5 px-3 rounded-2xl border text-sm font-bold shadow-md">
+                    <i class="login-feature-icon fa-solid fa-cubes" aria-hidden="true"></i>
+                    <span class="truncate">Material control</span>
+                </div>
+                <div class="login-feature-card tool h-14 flex items-center justify-center space-x-2.5 px-3 rounded-2xl border text-sm font-bold shadow-md">
+                    <i class="login-feature-icon fa-solid fa-screwdriver-wrench" aria-hidden="true"></i>
+                    <span class="truncate">Tool custody</span>
+                </div>
+                <div class="login-feature-card report h-14 flex items-center justify-center space-x-2.5 px-3 rounded-2xl border text-sm font-bold shadow-md">
+                    <i class="login-feature-icon fa-solid fa-file-waveform" aria-hidden="true"></i>
+                    <span class="truncate">Reports</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="w-full max-w-[480px] bg-white rounded-[2.75rem] p-10 sm:p-12 shadow-[0_30px_60px_-15px_rgba(0,0,0,0.5)] border border-white/60 flex flex-col justify-between shrink-0 ml-auto">
+            <div>
+                <div class="flex items-center space-x-4 mb-8">
+                    <div class="kensova-emblem w-14 h-14 rounded-2xl flex items-center justify-center">
+                        <span class="emblem-roof"></span><span class="emblem-k text-3xl">K</span><span class="emblem-floor"></span>
+                    </div>
+                    <div>
+                        <h3 class="text-lg font-extrabold text-slate-950 leading-tight">Kensova Operations</h3>
+                        <p class="text-xs uppercase tracking-[0.25em] text-slate-400 font-extrabold">STORES & TOOLS SUITE</p>
+                    </div>
+                </div>
+
+                <div class="mb-8">
+                    <h4 class="text-3xl font-black text-slate-950 tracking-tight">Welcome back</h4>
+                    <p class="text-sm text-slate-500 font-semibold mt-1.5">Sign in with your Staff ID and password.</p>
+                </div>
+
+                <form id="authLoginForm" method="POST" autocomplete="off" class="space-y-5">
+                    {% csrf_token %}
+                    <div>
+                        <label class="block text-xs font-black uppercase tracking-wider text-slate-900 mb-2">Staff ID</label>
+                        <input type="text" id="staffIdInput" name="kensova_staff_id" value="" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="e.g. UUDS-804" required autofocus 
+                               class="input-login-prominent w-full rounded-2xl px-5 py-4 text-slate-950 font-black font-mono focus:outline-none">
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-black uppercase tracking-wider text-slate-900 mb-2">Password</label>
+                        <input type="password" id="passwordInput" name="kensova_access_key" value="" autocomplete="new-password" required 
+                               class="input-login-prominent w-full rounded-2xl px-5 py-4 text-slate-950 font-black focus:outline-none">
+                    </div>
+
+                    <button type="button" id="submitLoginBtn"
+                            class="btn-3d-emerald w-full py-4 text-white font-black text-sm uppercase tracking-wider rounded-2xl cursor-pointer mt-3 flex items-center justify-center space-x-2.5 select-none">
+                        <i class="fa-solid fa-lock text-sm login-lock"></i>
+                        <span class="login-spinner" aria-hidden="true"></span>
+                        <span id="loginButtonText">Login</span>
+                    </button>
+                </form>
+            </div>
+
+            <div class="mt-9 pt-5 border-t border-slate-100 text-center">
+                <p class="text-xs text-slate-400 font-semibold">Authorized Kensova personnel only</p>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<script>
+    (function initFastStars() {
+        const canvas = document.getElementById('spaceStarsCanvas');
+        if (!canvas) return;
+        const ctx = canvas.getContext('2d');
+        let w, h;
+
+        function resize() {
+            w = canvas.width = window.innerWidth;
+            h = canvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resize);
+        resize();
+
+        const numStars = 140;
+        const stars = [];
+        for (let i = 0; i < numStars; i++) {
+            stars.push({
+                x: Math.random() * w,
+                y: Math.random() * h,
+                radius: Math.random() * 2 + 0.8,
+                alpha: Math.random() * 0.8 + 0.2,
+                speedX: (Math.random() - 0.5) * 1.8,
+                speedY: (Math.random() - 0.5) * 1.8,
+                trail: Math.random() * 6 + 2,
+                pulse: Math.random() * 0.05 + 0.02
+            });
+        }
+
+        function animate() {
+            ctx.clearRect(0, 0, w, h);
+            for (let s of stars) {
+                s.x += s.speedX;
+                s.y += s.speedY;
+
+                if (s.x < 0) s.x = w;
+                if (s.x > w) s.x = 0;
+                if (s.y < 0) s.y = h;
+                if (s.y > h) s.y = 0;
+
+                ctx.beginPath();
+                ctx.moveTo(s.x, s.y);
+                ctx.lineTo(s.x - s.speedX * s.trail, s.y - s.speedY * s.trail);
+                ctx.strokeStyle = `rgba(110, 231, 183, ${s.alpha * 0.4})`;
+                ctx.lineWidth = s.radius * 0.6;
+                ctx.stroke();
+
+                ctx.beginPath();
+                ctx.arc(s.x, s.y, s.radius, 0, Math.PI * 2);
+                ctx.fillStyle = `rgba(209, 250, 229, ${s.alpha})`;
+                ctx.shadowBlur = 8;
+                ctx.shadowColor = '#34d399';
+                ctx.fill();
+            }
+            requestAnimationFrame(animate);
+        }
+        animate();
+    })();
+
+    document.addEventListener("DOMContentLoaded", function() {
+        const staffInput = document.getElementById('staffIdInput');
+        const passInput = document.getElementById('passwordInput');
+        const submitBtn = document.getElementById('submitLoginBtn');
+        const form = document.getElementById('authLoginForm');
+        const loginButtonText = document.getElementById('loginButtonText');
+        staffInput.value = '';
+        passInput.value = '';
+
+        staffInput.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                passInput.focus();
+                passInput.select();
+            }
+        });
+
+        passInput.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+            }
+        });
+
+        submitBtn.addEventListener('click', function() {
+            if (!form.reportValidity() || submitBtn.disabled) return;
+            form.querySelectorAll('input[data-auth-post]').forEach(el => el.remove());
+            const u = document.createElement('input');
+            u.type = 'hidden'; u.name = 'username'; u.value = staffInput.value; u.dataset.authPost = '1';
+            const p = document.createElement('input');
+            p.type = 'hidden'; p.name = 'password'; p.value = passInput.value; p.dataset.authPost = '1';
+            form.appendChild(u); form.appendChild(p);
+            submitBtn.disabled = true;
+            submitBtn.classList.add('is-loading');
+            if (loginButtonText) loginButtonText.textContent = 'Logging you in, please wait…';
+            requestAnimationFrame(() => requestAnimationFrame(() => form.submit()));
+        });
+    });
+</script>
+{% endblock %}

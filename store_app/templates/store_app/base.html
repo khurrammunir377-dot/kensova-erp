@@ -1,0 +1,941 @@
+<!DOCTYPE html>
+{% load static %}
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=0.9">
+    <title>{% block title %}Kensova Interiors | Store & Operations Suite{% endblock %}</title>
+
+    <!-- All third-party assets below are served locally from store_app/static/vendor/
+         so the app works fully offline (no CDN calls). -->
+    <link rel="stylesheet" href="{% static 'vendor/tailwind/tailwind.min.css' %}">
+    <link rel="stylesheet" href="{% static 'vendor/fontawesome/css/all.min.css' %}">
+    {% if request.resolver_match.url_name == 'dashboard' %}
+    <script src="{% static 'vendor/chartjs/chart.umd.min.js' %}"></script>
+    {% endif %}
+    {% if request.resolver_match.url_name == 'reports_hub' %}
+    <script src="{% static 'vendor/xlsx/xlsx.full.min.js' %}"></script>
+    <script src="{% static 'vendor/jspdf/jspdf.umd.min.js' %}"></script>
+    <script src="{% static 'vendor/jspdf/jspdf.plugin.autotable.min.js' %}"></script>
+    {% endif %}
+
+    <!-- TomSelect is only loaded on pages that actually use searchable dropdowns. -->
+    {% if request.resolver_match.url_name == 'tool_issue' or request.resolver_match.url_name == 'tool_return' or request.resolver_match.url_name == 'material_issue' or request.resolver_match.url_name == 'material_receive' or request.resolver_match.url_name == 'material_return' or request.resolver_match.url_name == 'reports_hub' %}
+    <link href="{% static 'vendor/tomselect/tom-select.default.min.css' %}" rel="stylesheet">
+    <script defer src="{% static 'vendor/tomselect/tom-select.complete.min.js' %}"></script>
+    {% endif %}
+
+    <style>
+        @import url('{% static "vendor/fonts/fonts.css" %}');
+        
+        html, body { width:100%; max-width:100%; overflow-x:hidden !important; }
+        body { 
+            font-family: 'Plus Jakarta Sans', sans-serif; 
+            background-color: #f1f5f9; 
+            color: #020617; 
+            overflow: hidden; 
+            font-size: 14px;
+        }
+        
+        .app-scroll::-webkit-scrollbar { width: 6px; height: 6px; }
+        .app-scroll::-webkit-scrollbar-track { background: #f8fafc; }
+        .app-scroll::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 9999px; }
+        .app-scroll::-webkit-scrollbar-thumb:hover { background: #64748b; }
+
+        /* Universal 3D Inset Inputs Across All Pages */
+        input[type="text"], input[type="password"], input[type="number"], input[type="date"], input[type="email"], select, textarea, .input-3d-bevel-large {
+            background: #ffffff !important;
+            border: 2px solid #94a3b8 !important;
+            box-shadow: inset 0 2px 4px rgba(15, 23, 42, 0.08), 0 1px 2px rgba(255, 255, 255, 0.9) !important;
+            color: #020617 !important;
+            font-weight: 800 !important;
+            font-size: 15.5px !important;
+            line-height: 46px !important;
+            min-height: 46px;
+            padding-top: 0 !important;
+            padding-bottom: 0 !important;
+            border-radius: 0.85rem !important;
+            transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        input:focus, select:focus, textarea:focus, .input-3d-bevel-large:focus {
+            border-color: #059669 !important;
+            background: #ffffff !important;
+            box-shadow: inset 0 1px 3px rgba(5, 150, 105, 0.1), 0 0 0 4px rgba(16, 185, 129, 0.22) !important;
+            outline: none !important;
+        }
+
+        /* TomSelect Dropdown Custom Styling */
+        .ts-control {
+            border: 2px solid #94a3b8 !important;
+            border-radius: 0.85rem !important;
+            padding: 0 13px !important;
+            font-weight: 800 !important;
+            font-size: 15.5px !important;
+            line-height: 1.4 !important;
+            min-height: 46px !important;
+            display: flex !important;
+            align-items: center !important;
+            box-shadow: inset 0 2px 4px rgba(15, 23, 42, 0.08) !important;
+        }
+        .ts-control.focus {
+            border-color: #059669 !important;
+            box-shadow: inset 0 1px 3px rgba(5, 150, 105, 0.1), 0 0 0 4px rgba(16, 185, 129, 0.22) !important;
+        }
+        .ts-wrapper.ts-validation-error .ts-control {
+            border-color:#e11d48 !important;
+            box-shadow: inset 0 1px 3px rgba(225,29,72,.08), 0 0 0 3px rgba(225,29,72,.14) !important;
+        }
+        .ts-dropdown {
+            border-radius: 1rem !important;
+            border: 2px solid #94a3b8 !important;
+            box-shadow: 0 14px 28px rgba(15, 23, 42, 0.15) !important;
+            font-weight: 700 !important;
+            z-index: 9999 !important;
+            font-size: 15px !important;
+            line-height: 1.45 !important;
+        }
+        /* TomSelect copies classes from the original select to its wrapper.
+           Keep the border only on .ts-control so searchable fields never show a double outline. */
+        .ts-wrapper.input-3d-bevel-large {
+            background: transparent !important;
+            border: 0 !important;
+            border-radius: 0 !important;
+            box-shadow: none !important;
+            min-height: 0 !important;
+            padding: 0 !important;
+        }
+
+        .ts-dropdown .option,
+        .ts-dropdown .optgroup-header {
+            padding: 10px 13px !important;
+        }
+        .ts-dropdown-content { display:block !important; max-height: 235px !important; }
+        .ts-dropdown .option { display:block !important; width:100% !important; clear:both !important; white-space:nowrap !important; overflow:hidden; text-overflow:ellipsis; box-sizing:border-box; }
+        .ts-dropdown .option + .option { border-top:1px solid #eef2f7; }
+        .ts-control > input { line-height:1.2 !important; margin:0 !important; padding:0 !important; align-self:center !important; }
+        .ts-control .item { display:flex !important; align-items:center !important; min-width:0; max-width:100%; line-height:1.2 !important; }
+        .select-code { color:#075fc6; font-weight:900; font-family:ui-monospace,SFMono-Regular,Menlo,monospace; }
+        .select-name { color:#0f172a; font-weight:850; }
+        .select-detail { color:#07834f; font-weight:850; }
+        .select-colored-row { display:inline-flex; align-items:baseline; flex-wrap:nowrap; max-width:100%; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+        .operational-form input:not([type="hidden"]),
+        .operational-form select,
+        .operational-form .ts-wrapper,
+        .operational-form .ts-control { width:100% !important; height:48px !important; min-height:48px !important; max-height:48px !important; }
+        .operational-form .ts-wrapper { padding:0 !important; }
+        .operational-form textarea { height:48px !important; min-height:48px !important; max-height:48px !important; resize:none; line-height:1.35 !important; padding-top:13px !important; padding-bottom:10px !important; }
+        .operational-form .form-pair-grid > div { display:flex; flex-direction:column; min-width:0; }
+        .operational-form .form-pair-grid > div > label { min-height:38px; display:flex !important; align-items:flex-end; }
+
+        /* Solid Color 3D Buttons */
+        .btn-3d-emerald {
+            background: linear-gradient(180deg, #059669 0%, #047857 100%) !important;
+            color: #ffffff !important;
+            border: 1px solid #047857 !important;
+            box-shadow: 0 4px 12px rgba(5, 150, 105, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.3) !important;
+        }
+        .btn-3d-emerald:hover {
+            background: linear-gradient(180deg, #10b981 0%, #059669 100%) !important;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(5, 150, 105, 0.45) !important;
+        }
+
+        .btn-3d-amber {
+            background: linear-gradient(180deg, #d97706 0%, #b45309 100%) !important;
+            color: #ffffff !important;
+            border: 1px solid #b45309 !important;
+            box-shadow: 0 4px 12px rgba(217, 119, 6, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.3) !important;
+        }
+        .btn-3d-amber:hover {
+            background: linear-gradient(180deg, #f59e0b 0%, #d97706 100%) !important;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(217, 119, 6, 0.45) !important;
+        }
+
+        .btn-3d-purple {
+            background: linear-gradient(180deg, #7c3aed 0%, #6d28d9 100%) !important;
+            color: #ffffff !important;
+            border: 1px solid #6d28d9 !important;
+            box-shadow: 0 4px 12px rgba(124, 58, 237, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.3) !important;
+        }
+        .btn-3d-purple:hover {
+            background: linear-gradient(180deg, #8b5cf6 0%, #7c3aed 100%) !important;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(124, 58, 237, 0.45) !important;
+        }
+
+        .btn-3d-indigo {
+            background: linear-gradient(180deg, #4f46e5 0%, #4338ca 100%) !important;
+            color: #ffffff !important;
+            border: 1px solid #4338ca !important;
+            box-shadow: 0 4px 12px rgba(79, 70, 229, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.3) !important;
+        }
+        .btn-3d-indigo:hover {
+            background: linear-gradient(180deg, #6366f1 0%, #4f46e5 100%) !important;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(79, 70, 229, 0.45) !important;
+        }
+
+        .btn-3d-rose {
+            background: linear-gradient(180deg, #e11d48 0%, #be123c 100%) !important;
+            color: #ffffff !important;
+            border: 1px solid #be123c !important;
+            box-shadow: 0 4px 12px rgba(225, 29, 72, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.3) !important;
+        }
+        .btn-3d-rose:hover {
+            background: linear-gradient(180deg, #f43f5e 0%, #e11d48 100%) !important;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(225, 29, 72, 0.45) !important;
+        }
+
+        .btn-3d-slate {
+            background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%) !important;
+            color: #ffffff !important;
+            border: 1px solid #0f172a !important;
+            box-shadow: 0 4px 12px rgba(15, 23, 42, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.3) !important;
+        }
+        .btn-3d-slate:hover {
+            background: linear-gradient(180deg, #334155 0%, #1e293b 100%) !important;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(15, 23, 42, 0.45) !important;
+        }
+
+        /* Kensova Interiors architectural emblem */
+        @keyframes kensovaLogoMotion {
+            0%, 100% { transform: translateY(0) scale(1); filter: drop-shadow(0 8px 12px rgba(2,132,199,.25)); }
+            50% { transform: translateY(-4px) scale(1.035); filter: drop-shadow(0 14px 20px rgba(16,185,129,.42)); }
+        }
+        .sidebar-3d-k-rotating {
+            animation: kensovaLogoMotion 4.8s ease-in-out infinite;
+            transform-style: preserve-3d;
+        }
+        .sidebar-3d-k-rotating:hover {
+            animation-play-state: paused;
+            transform: scale(1.1) rotate(0deg);
+            transition: transform 0.3s ease;
+        }
+        .kensova-emblem {
+            position: relative;
+            overflow: hidden;
+            isolation: isolate;
+            background: linear-gradient(145deg, #071b35 0%, #063d4a 48%, #067354 100%);
+            border: 2px solid #76e4c0;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,.45), inset 0 -12px 22px rgba(0,0,0,.3), 0 10px 24px rgba(2,44,70,.34);
+        }
+        .kensova-emblem::before {
+            content: '';
+            position: absolute;
+            inset: 9%;
+            border: 1px solid rgba(255,255,255,.26);
+            border-radius: inherit;
+            z-index: -1;
+        }
+        .kensova-emblem::after {
+            content: '';
+            position: absolute;
+            width: 34%; height: 180%; top: -40%; left: -70%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,.42), transparent);
+            transform: rotate(24deg);
+            animation: emblemShine 4.5s ease-in-out infinite;
+        }
+        @keyframes emblemShine { 0%, 58% { left: -70%; } 100% { left: 145%; } }
+        .kensova-emblem .emblem-k {
+            position: relative;
+            color: white;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            font-weight: 900;
+            font-style: normal;
+            line-height: 1;
+            z-index: 2;
+            text-shadow: 0 3px 0 #075985, 0 7px 14px rgba(0,0,0,.5);
+            transform-style: preserve-3d;
+            animation: kLetterRotateColor 5s ease-in-out infinite;
+        }
+        @keyframes kLetterRotateColor {
+            0%, 100% { transform: rotateY(0deg); color: #ffffff; }
+            25% { color: #fbbf24; }
+            50% { transform: rotateY(360deg); color: #6ee7b7; }
+            75% { color: #7dd3fc; }
+        }
+        .kensova-emblem .emblem-roof {
+            position: absolute; width: 56%; height: 56%; top: 12%; left: 22%;
+            border-top: .12em solid #fbbf24; border-left: .12em solid #fbbf24;
+            transform: rotate(45deg); border-radius: .12em; z-index: 1;
+            filter: drop-shadow(0 2px 3px rgba(0,0,0,.4));
+        }
+        .kensova-emblem .emblem-floor {
+            position: absolute; width: 56%; height: 3px; left: 22%; bottom: 17%;
+            background: linear-gradient(90deg, #fbbf24, #6ee7b7); border-radius: 999px; z-index: 2;
+        }
+        .sidebar-section-title {
+            margin-top: 18px !important;
+            margin-bottom: 8px !important;
+            padding: 0 12px 5px;
+            font-size: 12.5px;
+            line-height: 1.2;
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: .09em;
+            text-decoration-line: underline;
+            text-decoration-thickness: 2px;
+            text-underline-offset: 5px;
+        }
+        .section-operations { color: #075fc6 !important; text-decoration-color: #60a5fa; }
+        .section-materials { color: #d65a00 !important; text-decoration-color: #fb923c; }
+        .section-records { color: #16a66a !important; text-decoration-color: #6ee7b7; }
+        .sidebar-btn { background: transparent; border: 0 !important; }
+        .sidebar-btn:hover { transform: translateX(5px) translateY(-1px); box-shadow: 0 7px 15px rgba(15,23,42,.12); }
+        .sidebar-btn-active {
+            background: linear-gradient(90deg,#047857 0%,#065f46 100%) !important;
+            color: #ffffff !important;
+            box-shadow: inset 5px 0 0 #fbbf24, 0 7px 16px rgba(4,120,87,.32) !important;
+        }
+        .sidebar-btn-active i { color:#ffffff !important; filter:drop-shadow(0 2px 3px rgba(0,0,0,.25)); }
+        .sidebar-section-end { margin-bottom: 24px !important; }
+        .sidebar-btn i { transition: transform .35s ease, filter .35s ease; }
+        .sidebar-btn:hover i { transform: scale(1.2) rotate(-8deg); filter: drop-shadow(0 3px 4px rgba(2,132,199,.35)); }
+        @keyframes starColorPulse {
+            0%,100% { color:#10b981; transform:rotate(0deg) scale(1); text-shadow:0 0 5px #6ee7b7; }
+            33% { color:#f59e0b; transform:rotate(120deg) scale(1.18); text-shadow:0 0 8px #fcd34d; }
+            66% { color:#0ea5e9; transform:rotate(240deg) scale(1.06); text-shadow:0 0 8px #7dd3fc; }
+        }
+        .header-star { display:inline-block; font-size:13px; animation:starColorPulse 3s linear infinite; }
+        .recent-panel { min-height: 100%; }
+        .recent-panel > div { min-height:100%; display:flex; flex-direction:column; }
+        .recent-panel .recent-list {
+            display:grid; flex:1; min-height:0;
+            grid-template-rows:repeat(9,minmax(0,1fr)); gap:7px;
+        }
+        .recent-panel .recent-row {
+            min-height:0; max-height:none; overflow:hidden;
+            padding: 8px 12px !important; border: 1px solid #dbe4ee; border-radius: 12px;
+            background: linear-gradient(90deg,#ffffff,#f8fafc); transition: all .18s ease;
+        }
+        .recent-panel .recent-row { display:flex !important; align-items:center !important; flex-wrap:nowrap !important; }
+        .recent-panel .recent-row > div:first-child { min-width:0; overflow:hidden; flex:1 1 auto; }
+        .recent-panel .recent-row > div:first-child > div,
+        .recent-panel .recent-row > div:first-child > span,
+        .recent-panel .recent-row p { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+        .recent-panel .recent-row > .text-right,
+        .recent-panel .recent-row > .recent-time { flex:0 0 auto !important; margin-left:12px; white-space:nowrap !important; }
+        .recent-panel .recent-row:hover {
+            background: linear-gradient(90deg,#ecfeff,#ecfdf5); border-color:#34d399;
+            transform: translateX(4px); box-shadow:0 7px 16px rgba(5,150,105,.13);
+        }
+        .recent-panel > div > div:first-child {
+            background: linear-gradient(100deg,#dbeafe 0%,#ccfbf1 55%,#fef3c7 100%) !important;
+            border-color:#67e8f9 !important;
+            box-shadow:inset 0 1px 0 rgba(255,255,255,.8), 0 4px 10px rgba(14,116,144,.10);
+        }
+        .recent-time { color:#075fc6 !important; font-weight:900 !important; font-size:11px !important; }
+        .hide-scrollbar { scrollbar-width: none; -ms-overflow-style: none; }
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+
+        /* Consistent, spacious modal dimensions across the application. */
+        [id$="Modal"].fixed > div {
+            width: min(820px, 94vw) !important;
+            max-width: 820px !important;
+            min-height: min(560px, 86vh);
+            max-height: 90vh;
+            overflow-y: auto;
+            display:flex;
+            flex-direction:column;
+        }
+        [id$="Modal"].fixed form { display:flex; flex:1; flex-direction:column; min-height:0; }
+        [id$="Modal"].fixed form > :last-child { margin-top:auto !important; }
+        .pending-count-button {
+            color:#ffffff !important;
+            background:linear-gradient(90deg,#1d4ed8,#3730a3) !important;
+            border:0 !important; text-shadow:0 1px 2px rgba(0,0,0,.55);
+        }
+        .pending-count-button * { color:#ffffff !important; }
+        .operational-form input.custodian-field { color:#075fc6 !important; font-weight:900 !important; }
+        [id$="Modal"].fixed > div > .flex:first-child {
+            background: linear-gradient(135deg, #e0f2fe 0%, #d1fae5 100%);
+            border: 1px solid #7dd3fc;
+            border-radius: 1rem;
+            padding: 14px 16px !important;
+        }
+        [id$="Modal"].fixed label { display: block; margin-bottom: 6px; }
+        [id$="Modal"].fixed input:not([type="hidden"]),
+        [id$="Modal"].fixed select,
+        [id$="Modal"].fixed textarea {
+            border: 2px solid #94a3b8 !important;
+            background-color: #ffffff !important;
+            box-shadow: inset 0 2px 4px rgba(15,23,42,.08) !important;
+        }
+        [id$="Modal"].fixed input[readonly] { background-color: #e2e8f0 !important; }
+        input[name="unit"] { text-transform: uppercase !important; }
+        /* Five operational entry pages share one visual geometry. */
+        .operational-page-grid { gap: 24px !important; }
+        .operational-entry-panel, .recent-panel { height:100%; min-height:0; }
+        .operational-entry-panel { padding:24px !important; }
+        .operational-entry-panel > div { height:100%; min-height:0; display:flex; flex-direction:column; }
+        .operational-entry-panel .operational-form { flex:1; }
+        .operational-section-header,
+        .recent-section-header {
+            height:58px !important;
+            min-height:58px !important;
+            max-height:58px !important;
+            padding:12px 16px !important;
+            margin-bottom:16px !important;
+            box-sizing:border-box;
+        }
+        .recent-section-header { gap:12px; }
+        .operational-form { display:flex; flex-direction:column; min-height:0; gap:10px !important; }
+        .operational-form > div:not(.form-submit-row) { margin-top:0 !important; min-height:76px; height:76px; max-height:76px; }
+        .operational-form > div:not(.form-submit-row) > label,
+        .operational-form > div:not(.form-submit-row) > .flex:first-child { min-height:28px !important; height:28px !important; max-height:28px !important; display:flex !important; align-items:center !important; margin-bottom:0 !important; }
+        .operational-form .form-pair-grid { min-height:76px !important; height:76px !important; max-height:76px !important; }
+        .operational-form .form-pair-grid > div > label { min-height:28px !important; height:28px !important; max-height:28px !important; display:flex !important; align-items:center !important; margin-bottom:0 !important; overflow:hidden; }
+        .operational-form .form-submit-row { margin-top:auto !important; min-height:58px; height:58px; max-height:58px; padding-top:10px !important; }
+        .operational-form .form-submit-row button { height:48px !important; min-height:48px !important; max-height:48px !important; padding-top:0 !important; padding-bottom:0 !important; display:flex; align-items:center; justify-content:center; }
+        .operational-form input:not([type="hidden"]),
+        .operational-form select { line-height:44px !important; }
+        .operational-form input[type="date"] { line-height:normal !important; }
+        .recent-report-btn {
+            display:inline-flex; align-items:center; justify-content:center; gap:6px; flex:none;
+            height:32px; padding:0 12px; border-radius:10px; color:#ffffff !important;
+            background:linear-gradient(180deg,#2563eb,#1d4ed8); border:1px solid #1d4ed8;
+            font-size:11px; font-weight:900; white-space:nowrap;
+            box-shadow:0 3px 8px rgba(37,99,235,.22);
+        }
+        .recent-report-btn:hover { transform:translateY(-1px); box-shadow:0 5px 11px rgba(37,99,235,.30); }
+        .recent-label-received { color:#075fc6 !important; font-weight:900 !important; }
+        .recent-label-issued { color:#07834f !important; font-weight:900 !important; }
+        .recent-label-returned { color:#7c3aed !important; font-weight:900 !important; }
+        .pending-date { color:#0f172a !important; font-weight:800 !important; }
+        .pending-time { color:#075fc6 !important; font-weight:900 !important; }
+        .pending-tool-id, .pending-staff-id { color:#075fc6 !important; font-weight:900 !important; }
+
+        /* Keep Recent headers unchanged, but use the softer earlier Kensova chrome on sidebar/header. */
+        .recent-section-header {
+            background: linear-gradient(110deg, #e0f2fe 0%, #d1fae5 62%, #fef9c3 100%) !important;
+        }
+        .sidebar-kensova {
+            background: linear-gradient(180deg, #f8fcff 0%, #eefbf7 48%, #f7fbef 100%) !important;
+            border-right: 1px solid rgba(148,163,184,.34) !important;
+            box-shadow: inset -10px 0 22px rgba(15,23,42,.035), 7px 0 18px rgba(15,23,42,.045) !important;
+        }
+        .sidebar-top-kensova {
+            margin:8px 8px 0 8px !important;
+            border:1px solid rgba(45,212,191,.30) !important;
+            border-radius:0 0 24px 24px !important;
+            background: linear-gradient(135deg, rgba(240,249,255,.98), rgba(236,253,245,.98)) !important;
+            box-shadow: inset 0 -8px 14px rgba(15,23,42,.045), 0 6px 15px rgba(15,23,42,.07) !important;
+        }
+        .top-header-kensova {
+            margin:8px 10px 0 10px !important;
+            border:1px solid rgba(45,212,191,.30) !important;
+            border-radius:0 0 24px 24px !important;
+            background: linear-gradient(105deg, #f2f9ff 0%, #ecfbf5 66%, #fbfbea 100%) !important;
+            box-shadow: inset 0 -7px 13px rgba(15,23,42,.04), 0 6px 15px rgba(15,23,42,.07) !important;
+        }
+        .sidebar-user-zone {
+            min-height:76px !important; height:76px !important;
+            margin:0 8px 0 8px !important;
+            padding:8px 10px 9px !important;
+            border:1px solid rgba(45,212,191,.28) !important;
+            border-bottom:0 !important;
+            border-radius:26px 26px 0 0 !important;
+            background: linear-gradient(135deg, rgba(240,249,255,.98), rgba(236,253,245,.98)) !important;
+            box-shadow: inset 0 10px 18px rgba(255,255,255,.42), 0 -5px 13px rgba(15,23,42,.055) !important;
+        }
+        .user-id-badge {
+            width:40px; height:46px; flex:0 0 40px; border-radius:14px;
+            display:flex; flex-direction:column; align-items:center; justify-content:center;
+            color:#fff; background:linear-gradient(155deg,#047857,#0f766e);
+            border:2px solid rgba(167,243,208,.85);
+            box-shadow:inset 0 2px 5px rgba(255,255,255,.22), 0 5px 10px rgba(5,150,105,.20);
+            font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-weight:950; line-height:1;
+        }
+        .user-id-badge .uid-top { font-size:10px; letter-spacing:.04em; }
+        .user-id-badge .uid-bottom { font-size:15px; margin-top:4px; }
+        .sidebar-user-name { margin-left:8px; font-size:11px; line-height:1.15; font-weight:950; color:#0f172a; max-width:116px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+        .sidebar-user-role { font-size:9px; line-height:1.15; color:#64748b; font-weight:800; margin-top:3px; }
+        .app-footer-kensova {
+            position:fixed; left:16rem; right:0; bottom:0; z-index:40;
+            height:20px !important; min-height:20px !important;
+            border:0 !important; box-shadow:none !important;
+            background:rgba(255,255,255,.96) !important;
+        }
+        .main-content-kensova { padding-bottom:28px !important; }
+        .sidebar-logout-btn { width:46px; height:46px; border-radius:14px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; color:#be123c; background:rgba(255,255,255,.72); border:1px solid #fda4af; box-shadow:inset 0 1px 0 rgba(255,255,255,.9),0 4px 10px rgba(15,23,42,.07); font-weight:900; line-height:1; }
+        .sidebar-logout-btn i { font-size:16px !important; }
+        .sidebar-logout-btn span { font-size:8.5px; text-transform:uppercase; letter-spacing:.02em; }
+        .sidebar-logout-btn:hover { background:#fff1f2; transform:translateY(-1px); }
+        .staff-id-line { display:block; color:#075fc6; font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-weight:900; line-height:1.15; }
+        .staff-name-line { display:block; color:#0f172a; font-weight:850; line-height:1.2; margin-top:2px; }
+        .footer-author { font-weight:950; animation:footerAuthorShift 3.2s ease-in-out infinite; }
+        @keyframes footerAuthorShift { 0%,100%{color:#075fc6} 33%{color:#059669} 66%{color:#7c3aed} }
+        .custodian-color-wrap { position:relative; width:100%; height:48px; }
+        .custodian-color-wrap > input { position:relative; z-index:1; background:#fff !important; }
+        .custodian-color-overlay { position:absolute; z-index:2; inset:0; height:48px; display:flex; align-items:center; padding:0 16px; pointer-events:none; font-size:15.5px; font-weight:900; white-space:nowrap; overflow:hidden; border:2px solid transparent; border-radius:.85rem; }
+        .custodian-color-overlay .cid { color:#075fc6; font-family:ui-monospace,SFMono-Regular,Menlo,monospace; }
+        .custodian-color-overlay .cname { color:#0f172a; margin-left:4px; }
+        .custodian-color-wrap.overlay-on > input { color:transparent !important; caret-color:#075fc6 !important; }
+        .custodian-color-wrap.overlay-on > input::selection { background:transparent !important; }
+        .pending-checkbox { width:17px !important; height:17px !important; min-height:17px !important; accent-color:#059669; cursor:pointer; }
+
+        /* Purchase Request modal: compact, structured and visually aligned. */
+        #newPRModal > div { min-height:min(650px,88vh) !important; height:min(650px,88vh) !important; width:min(820px,94vw) !important; max-width:820px !important; padding:22px !important; overflow:hidden !important; display:flex !important; flex-direction:column !important; }
+        #newPRModal .pr-modal-head { min-height:52px; margin-bottom:12px !important; padding:10px 14px !important; background:linear-gradient(110deg,#ede9fe,#e0f2fe,#dcfce7) !important; border:1px solid #a5b4fc !important; box-shadow:0 5px 14px rgba(99,102,241,.10); }
+        #newPRModal .pr-modal-body { display:flex; flex-direction:column; flex:1; min-height:0; gap:10px; }
+        #newPRModal .pr-picker-card { padding:2px 0 0 !important; border:0 !important; background:transparent !important; border-radius:0 !important; }
+        #newPRModal .pr-picker-card .ts-wrapper { border:0 !important; box-shadow:none !important; background:transparent !important; padding:0 !important; }
+        #newPRModal .pr-picker-card .ts-control { border:2px solid #94a3b8 !important; box-shadow:inset 0 2px 4px rgba(15,23,42,.08) !important; }
+        #newPRModal #prQuantitiesContainer { min-height:230px; max-height:285px; overflow-y:auto; padding:4px 3px 4px 0 !important; display:flex; flex-direction:column; gap:7px; }
+        #newPRModal #prQuantitiesContainer > label { margin:0 0 5px !important; }
+        #newPRModal .pr-qty-row { height:42px; min-height:42px; padding:5px 8px !important; gap:10px; }
+        #newPRModal .pr-qty-row > span { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+        #newPRModal .pr-qty-row input { min-height:30px !important; height:30px !important; max-height:30px !important; line-height:28px !important; }
+        #newPRModal .pr-remarks-block { margin-top:auto !important; width:100%; }
+        #newPRModal textarea[name="notes"] { min-height:46px !important; height:46px !important; max-height:46px !important; resize:none !important; overflow:hidden !important; appearance:none !important; -webkit-appearance:none !important; line-height:1.3 !important; padding:11px 12px !important; width:100% !important; }
+        #newPRModal .pr-modal-actions { margin-top:4px !important; padding-top:10px !important; }
+        #newPRModal .pr-remove-item { width:28px; height:28px; border-radius:9px; background:#ffe4e6; color:#be123c; border:1px solid #fda4af; font-size:20px; line-height:24px; font-weight:900; display:inline-flex; align-items:center; justify-content:center; }
+        #newPRModal .pr-remove-item:hover { background:#e11d48; color:#fff; }
+        #newPRModal textarea[name="notes"]::-webkit-resizer { display:none !important; }
+
+
+        .form-panel-title {
+            font-size: 18px !important;
+            line-height: 1.2 !important;
+            font-weight: 900 !important;
+            letter-spacing: .025em !important;
+        }
+        .header-page-icon {
+            background: linear-gradient(145deg, #059669 0%, #047857 52%, #0369a1 100%) !important;
+            color: #ffffff !important;
+            border: 2px solid #6ee7b7;
+            box-shadow: 0 7px 16px rgba(5,150,105,.32), inset 0 1px 0 rgba(255,255,255,.4) !important;
+        }
+        .header-page-icon i { display: inline-block !important; color: #ffffff !important; opacity: 1 !important; font-size: 21px !important; }
+
+        /* Floating Toasts */
+        #toastContainer {
+            position: fixed;
+            top: 94px;
+            right: 24px;
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            pointer-events: none;
+        }
+        .toast-item {
+            pointer-events: auto;
+            min-width: 320px;
+            max-width: 440px;
+            padding: 14px 18px;
+            border-radius: 1rem;
+            box-shadow: 0 20px 35px -5px rgba(0, 0, 0, 0.25), 0 0 0 1px rgba(0, 0, 0, 0.05);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 13px;
+            font-weight: 800;
+            animation: toastSlideIn 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+            transition: all 0.3s ease;
+        }
+        @keyframes toastSlideIn {
+            0% { opacity: 0; transform: translateY(-16px) scale(0.95); }
+            100% { opacity: 1; transform: translateY(0) scale(1); }
+        }
+
+        /* Readable labels and data-entry text across every operational form. */
+        label {
+            color: #0f172a !important;
+            font-weight: 800 !important;
+            font-size: 14px !important;
+            line-height: 1.35 !important;
+        }
+
+        textarea {
+            min-height: 82px;
+            resize: vertical;
+        }
+
+        input::placeholder,
+        textarea::placeholder {
+            font-size: 14.5px !important;
+            font-weight: 650 !important;
+            color: #64748b !important;
+            opacity: 1;
+        }
+
+        /* Let every page use the complete workspace down to the fixed footer. */
+        main > :first-child {
+            min-height: 100%;
+        }
+
+        @media (max-height: 760px) {
+            input[type="text"], input[type="password"], input[type="number"], input[type="date"], input[type="email"], select, .input-3d-bevel-large,
+            .ts-control {
+                min-height: 42px !important;
+            }
+        }
+        .ask-ai-fab{position:fixed;right:24px;bottom:34px;z-index:70;border:0;border-radius:999px;padding:14px 20px;font-weight:950;color:#fff;background:linear-gradient(120deg,#7c3aed,#2563eb,#059669,#2563eb,#7c3aed);background-size:300% 300%;box-shadow:0 12px 30px rgba(37,99,235,.28),inset 0 1px 0 rgba(255,255,255,.35);display:flex;align-items:center;gap:9px;cursor:pointer;transition:box-shadow .25s ease,transform .25s ease}
+        .ask-ai-fab:hover{transform:translateY(-4px) scale(1.06);box-shadow:0 18px 44px rgba(124,58,237,.55),0 0 0 8px rgba(16,185,129,.25),0 0 26px rgba(37,99,235,.55),inset 0 1px 0 rgba(255,255,255,.45)}
+        .ask-ai-fab span{background:linear-gradient(90deg,#ffffff 0%,#dff5ff 25%,#ffffff 50%,#dcfce7 75%,#ffffff 100%);background-size:250% auto;-webkit-background-clip:text;background-clip:text;color:transparent;animation:askAiTextShine 3.2s linear infinite}
+        .ask-ai-fab i{display:inline-block;animation:askAiWandTwinkle 2.6s ease-in-out infinite}
+        @keyframes askAiLivePulse{0%,100%{box-shadow:0 12px 30px rgba(37,99,235,.28),0 0 0 0 rgba(16,185,129,.35),inset 0 1px 0 rgba(255,255,255,.35)}50%{box-shadow:0 12px 30px rgba(37,99,235,.35),0 0 0 9px rgba(16,185,129,0),inset 0 1px 0 rgba(255,255,255,.35)}}
+        .ask-ai-fab{animation:askAiLivePulse 2.4s ease-in-out infinite,askAiFloat 3.6s ease-in-out infinite,askAiGradientShift 7s ease-in-out infinite}
+        @keyframes askAiFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}
+        @keyframes askAiGradientShift{0%,100%{background-position:0% 50%}50%{background-position:100% 50%}}
+        @keyframes askAiTextShine{0%{background-position:0% center}100%{background-position:250% center}}
+        @keyframes askAiWandTwinkle{0%,100%{transform:rotate(0deg) scale(1)}50%{transform:rotate(-14deg) scale(1.18)}}
+        @media (prefers-reduced-motion:reduce){.ask-ai-fab,.ask-ai-fab span,.ask-ai-fab i{animation:none}}
+        .ask-ai-panel{position:fixed;right:24px;bottom:96px;width:min(430px,calc(100vw - 32px));height:min(620px,calc(100vh - 130px));z-index:80;background:#fff;border:1px solid #cbd5e1;border-radius:24px;box-shadow:0 24px 70px rgba(15,23,42,.26);display:flex;flex-direction:column;overflow:hidden}.ask-ai-panel.hidden{display:none}.ask-ai-head{padding:14px 16px;background:linear-gradient(110deg,#e0f2fe 0%,#d1fae5 62%,#fef9c3 100%);border-bottom:1px solid #cbd5e1}.ask-ai-history{flex:1;overflow:auto;padding:14px;background:#f8fafc}.ask-ai-msg{max-width:88%;padding:10px 12px;border-radius:15px;margin:7px 0;white-space:pre-wrap;font-size:12px;line-height:1.45}.ask-ai-user{margin-left:auto;background:#dbeafe;color:#0f172a}.ask-ai-assistant{background:#fff;border:1px solid #dbe3ee;color:#0f172a}.ask-ai-compose{padding:12px;border-top:1px solid #dbe3ee;background:#fff}.ask-ai-compose textarea{width:100%;height:78px;resize:none;border:2px solid #cbd5e1;border-radius:14px;padding:10px 12px;font-size:12px;outline:none}.ask-ai-compose textarea:focus{border-color:#2563eb}.ask-ai-actions{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:8px}.ask-ai-chip{border:1px solid #cbd5e1;background:#f8fafc;border-radius:10px;padding:7px 10px;font-size:11px;font-weight:900;cursor:pointer}.ask-ai-send{margin-left:auto;background:linear-gradient(180deg,#2563eb,#1d4ed8);color:#fff;border:0;border-radius:10px;padding:8px 14px;font-size:11px;font-weight:950}.ask-ai-status{font-size:10px;color:#64748b;margin-top:5px}.sidebar-user-zone{margin-top:auto !important;padding-left:16px !important;padding-right:16px !important}
+        .sidebar-user-zone .sidebar-user-name,.sidebar-user-zone .sidebar-user-role{text-align:left !important}
+        .sidebar-user-zone .flex.items-center.gap-4{gap:7px !important;margin-left:0 !important;align-items:center !important}.sidebar-user-zone .sidebar-user-name{margin-left:0 !important;padding-top:5px !important}.sidebar-user-zone .sidebar-user-role{margin-left:0 !important;margin-top:4px !important}.sidebar-kensova>.overflow-y-auto{padding-bottom:0 !important}
+
+    </style>
+</head>
+<body class="text-slate-950 antialiased h-screen w-screen flex flex-col selection:bg-emerald-600 selection:text-white">
+
+    <div id="toastContainer">
+        {% if messages %}
+            {% for m in messages %}
+            <div class="toast-item {% if m.tags == 'error' %}bg-rose-900 text-white border border-rose-700{% else %}bg-emerald-900 text-white border border-emerald-600{% endif %}">
+                <div class="flex items-center space-x-3">
+                    <i class="fa-solid {% if m.tags == 'error' %}fa-circle-exclamation text-rose-300 text-base{% else %}fa-circle-check text-emerald-300 text-base{% endif %}"></i>
+                    <span>{{ m }}</span>
+                </div>
+                <button onclick="this.parentElement.remove()" class="text-white/60 hover:text-white ml-3 text-sm font-bold">&times;</button>
+            </div>
+            {% endfor %}
+        {% endif %}
+    </div>
+
+    <div class="flex-1 flex w-full h-screen overflow-hidden">
+        {% if user.is_authenticated %}
+        <aside class="sidebar-kensova w-64 bg-slate-50 border-r-2 border-slate-300 flex flex-col shrink-0 h-full select-none shadow-sm">
+            <div class="overflow-y-auto app-scroll flex-1 min-h-0">
+                
+                <!-- Sidebar Header with 3D Animated Rotating Emblem -->
+                <div class="sidebar-top-kensova p-4 flex items-center space-x-3">
+                    <div class="sidebar-3d-k-rotating kensova-emblem w-12 h-12 rounded-2xl flex items-center justify-center cursor-pointer">
+                        <span class="emblem-roof"></span><span class="emblem-k text-2xl">K</span><span class="emblem-floor"></span>
+                    </div>
+                    <div>
+                        <h1 class="tracking-wider text-slate-950 text-base font-extrabold leading-tight">KENSOVA</h1>
+                        <p class="text-[15px] uppercase font-black leading-tight" style="color:#075985; letter-spacing:.22em; text-shadow:0 1px 0 rgba(255,255,255,.9);">Interior&nbsp;&nbsp;ERP</p>
+                    </div>
+                </div>
+
+                <nav class="p-3 space-y-2.5 text-[15px] font-extrabold">
+                    <a href="{% url 'dashboard' %}" class="sidebar-btn flex items-center space-x-3 px-3.5 py-2.5 rounded-xl transition {% if request.resolver_match.url_name == 'dashboard' %}sidebar-btn-active font-extrabold{% else %}text-slate-800 hover:bg-slate-100{% endif %}">
+                        <i class="fa-solid fa-chart-pie w-5 text-center text-emerald-600 text-base"></i>
+                        <span>Dashboard</span>
+                    </a>
+
+                    <div class="sidebar-section-title section-operations">TOOLS</div>
+                    
+                    <a href="{% url 'tool_issue' %}" class="sidebar-btn flex items-center space-x-3 px-3.5 py-2 rounded-xl transition {% if request.resolver_match.url_name == 'tool_issue' %}sidebar-btn-active font-extrabold{% else %}text-slate-800 hover:bg-slate-100{% endif %}">
+                        <i class="fa-solid fa-arrow-up-right-from-square w-5 text-center text-amber-600 text-base"></i>
+                        <span>Issue Tool</span>
+                    </a>
+                    
+                    <a href="{% url 'tool_return' %}" class="sidebar-btn flex items-center space-x-3 px-3.5 py-2 rounded-xl transition {% if request.resolver_match.url_name == 'tool_return' %}sidebar-btn-active font-extrabold{% else %}text-slate-800 hover:bg-slate-100{% endif %}">
+                        <i class="fa-solid fa-arrow-rotate-left w-5 text-center text-emerald-600 text-base"></i>
+                        <span>Return Tool</span>
+                    </a>
+                    
+                    <a href="{% url 'tool_pending' %}" class="sidebar-btn sidebar-section-end flex items-center space-x-3 px-3.5 py-2 rounded-xl transition {% if request.resolver_match.url_name == 'tool_pending' %}sidebar-btn-active font-extrabold{% else %}text-slate-800 hover:bg-slate-100{% endif %}">
+                        <i class="fa-solid fa-clock-rotate-left w-5 text-center text-rose-600 text-base"></i>
+                        <span>Pending Tools</span>
+                    </a>
+                    <div class="h-5" aria-hidden="true"></div>
+
+                    <div class="sidebar-section-title section-materials">Materials</div>
+
+                    <a href="{% url 'material_issue' %}" class="sidebar-btn flex items-center space-x-3 px-3.5 py-2 rounded-xl transition {% if request.resolver_match.url_name == 'material_issue' %}sidebar-btn-active font-extrabold{% else %}text-slate-800 hover:bg-slate-100{% endif %}">
+                        <i class="fa-solid fa-dolly w-5 text-center text-purple-600 text-base"></i>
+                        <span>Issue Material</span>
+                    </a>
+                    <a href="{% url 'material_receive' %}" class="sidebar-btn flex items-center space-x-3 px-3.5 py-2 rounded-xl transition {% if request.resolver_match.url_name == 'material_receive' %}sidebar-btn-active font-extrabold{% else %}text-slate-800 hover:bg-slate-100{% endif %}">
+                        <i class="fa-solid fa-truck-ramp-box w-5 text-center text-teal-600 text-base"></i>
+                        <span>Receive Material</span>
+                    </a>
+                    <a href="{% url 'material_return' %}" class="sidebar-btn sidebar-section-end flex items-center space-x-3 px-3.5 py-2 rounded-xl transition {% if request.resolver_match.url_name == 'material_return' %}sidebar-btn-active font-extrabold{% else %}text-slate-800 hover:bg-slate-100{% endif %}">
+                        <i class="fa-solid fa-rotate-left w-5 text-center text-indigo-600 text-base"></i>
+                        <span>Return Material</span>
+                    </a>
+                    <div class="h-5" aria-hidden="true"></div>
+
+                    <div class="sidebar-section-title section-records">Records & Masters</div>
+
+                    <a href="{% url 'reports_hub' %}" class="sidebar-btn flex items-center space-x-3 px-3.5 py-2.5 rounded-xl transition {% if request.resolver_match.url_name == 'reports_hub' %}sidebar-btn-active font-extrabold{% else %}text-slate-800 hover:bg-slate-100{% endif %}">
+                        <i class="fa-solid fa-file-invoice w-5 text-center text-base"></i>
+                        <span>Records & Reports</span>
+                    </a>
+                    <a href="{% url 'daily_report' %}" target="_blank" class="sidebar-btn flex items-center space-x-3 px-3.5 py-2 rounded-xl transition text-slate-800 hover:bg-slate-100">
+                        <i class="fa-solid fa-file-pdf w-5 text-center text-rose-600 text-base"></i>
+                        <span>Generate Daily Report</span>
+                    </a>
+                    <form method="POST" action="{% url 'send_daily_report_now' %}" class="m-0">{% csrf_token %}
+                        <button type="submit" onclick="return confirm('Generate and send today\'s full management report through the logged-in Outlook desktop account?')" class="sidebar-btn w-full flex items-center space-x-3 px-3.5 py-2 rounded-xl transition text-slate-800 hover:bg-emerald-50 text-left">
+                            <i class="fa-solid fa-paper-plane w-5 text-center text-emerald-600 text-base"></i>
+                            <span>Send Daily Report</span>
+                        </button>
+                    </form>
+                </nav>
+            </div>
+            <div class="sidebar-user-zone flex items-center justify-between shrink-0">
+                <div class="flex items-center gap-4 min-w-0">
+                    <div class="user-id-badge" title="{{ user.username }}">
+                        <span class="uid-top">UUDS</span>
+                        <span class="uid-bottom">{{ user.username|slice:"5:" }}</span>
+                    </div>
+                    <div class="min-w-0">
+                        <div class="sidebar-user-name" title="{{ user.get_full_name|default:user.username }}">{{ user.get_full_name|default:user.username }}</div>
+                        <div class="sidebar-user-role">Store Custodian</div>
+                    </div>
+                </div>
+                <a href="{% url 'logout' %}" title="Logout" class="sidebar-logout-btn shrink-0">
+                    <i class="fa-solid fa-power-off"></i>
+                    <span>Logout</span>
+                </a>
+            </div>
+        </aside>
+        {% endif %}
+
+        <div class="main-shell-kensova flex-1 flex flex-col h-full overflow-hidden bg-slate-100">
+            {% if user.is_authenticated %}
+            <header class="top-header-kensova px-6 py-4 flex items-center justify-between shrink-0">
+                
+                <div class="flex items-center space-x-4">
+                    <div class="header-page-icon w-12 h-12 rounded-2xl flex items-center justify-center text-white text-xl shadow-md shrink-0">
+                        <i class="{{ page_icon|default:'fa-solid fa-layer-group' }}"></i>
+                    </div>
+                    <div>
+                        <h1 class="text-2xl font-black text-slate-950 tracking-tight leading-tight flex items-center space-x-2">
+                            <span>{{ page_title|default:"Kensova Operations Suite" }}</span>
+                        </h1>
+                        {% if page_subtitle %}
+                        <p class="text-xs text-slate-600 font-bold mt-0.5 tracking-wide flex items-center space-x-1.5">
+                            <span class="header-star">★</span>
+                            <span>{{ page_subtitle }}</span>
+                        </p>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div class="flex items-center space-x-3 text-slate-950">
+                    <div class="flex items-center space-x-3 bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 text-white px-5 py-2.5 rounded-2xl border-2 border-slate-700 shadow-lg">
+                        <i class="fa-regular fa-calendar-days text-amber-400 text-xl"></i>
+                        <span id="liveFullDateDisplay" class="font-black text-base tracking-wide text-amber-300 font-mono">--</span>
+                    </div>
+
+                    <div class="flex items-center space-x-2.5 bg-gradient-to-r from-emerald-600 to-teal-700 text-white px-5 py-2.5 rounded-2xl border-2 border-emerald-400 shadow-lg">
+                        <i class="fa-solid fa-clock text-emerald-200 text-xl"></i>
+                        <span id="liveFullTimeDisplay" class="font-black text-lg tracking-widest font-mono">--:--:--</span>
+                    </div>
+                </div>
+            </header>
+            {% endif %}
+
+            <main class="main-content-kensova flex-1 overflow-y-auto app-scroll px-6 py-4">
+                {% block content %}{% endblock %}
+            </main>
+        </div>
+    </div>
+
+    {% if user.is_authenticated %}
+    <button type="button" class="ask-ai-fab" id="askAiFab"><i class="fa-solid fa-wand-magic-sparkles"></i><span>Ask AI</span></button>
+    <section class="ask-ai-panel hidden" id="askAiPanel" aria-label="Kensova Ask AI">
+      <div class="ask-ai-head flex items-center justify-between"><div><div class="font-black text-slate-950">Ask AI</div><div class="text-[10px] font-bold text-slate-600">Writing & translation assistant</div></div><button type="button" id="askAiClose" class="text-xl font-black">&times;</button></div>
+      <div class="ask-ai-history" id="askAiHistory"></div>
+      <div class="ask-ai-compose">
+        <div class="ask-ai-actions"><button type="button" class="ask-ai-chip" data-ai-action="correct">Correct English</button><button type="button" class="ask-ai-chip" data-ai-action="sinhala">Translate to Sinhala</button><button type="button" class="ask-ai-chip" id="askAiPaste"><i class="fa-regular fa-clipboard"></i> Paste</button></div>
+        <textarea id="askAiInput" placeholder="Type or paste text here..."></textarea>
+        <div class="flex items-center gap-2 mt-2"><div class="ask-ai-status" id="askAiStatus">Chat history is saved to Kensova ERP.</div><button type="button" class="ask-ai-send" id="askAiSend">Send</button></div>
+      </div>
+    </section>
+    {% endif %}
+
+    <footer class="app-footer-kensova select-none">
+        <div class="flex items-center justify-center h-full text-[10.5px] font-extrabold text-slate-700 tracking-[0.015em] leading-none">
+            Designed and Developed by | <span class="footer-author mx-1">Khurram Munir Basra</span> | UUDS DXB Stores
+        </div>
+    </footer>
+
+    <script>
+        function setupCustodianColorFields() {
+            document.querySelectorAll('input.custodian-field').forEach(function(input){
+                if (input.closest('.custodian-color-wrap')) return;
+                const wrap=document.createElement('div'); wrap.className='custodian-color-wrap';
+                input.parentNode.insertBefore(wrap,input); wrap.appendChild(input);
+                const overlay=document.createElement('div'); overlay.className='custodian-color-overlay'; wrap.appendChild(overlay);
+                const render=function(){
+                    const v=(input.value||'').trim(); overlay.innerHTML='';
+                    if(!v){ wrap.classList.remove('overlay-on'); return; }
+                    const parts=v.split(',');
+                    const id=document.createElement('span'); id.className='cid'; id.textContent=parts.shift().trim(); overlay.appendChild(id);
+                    if(parts.length){ const nm=document.createElement('span'); nm.className='cname'; nm.textContent=', '+parts.join(',').trim(); overlay.appendChild(nm); }
+                    if(document.activeElement!==input) wrap.classList.add('overlay-on');
+                };
+                input.addEventListener('focus',()=>wrap.classList.remove('overlay-on'));
+                input.addEventListener('blur',render); input.addEventListener('input',render); input.addEventListener('change',render);
+                render();
+            });
+            document.addEventListener('change', function(){ setTimeout(function(){ document.querySelectorAll('input.custodian-field').forEach(i=>i.dispatchEvent(new Event('change'))); },0); });
+        }
+        document.addEventListener('DOMContentLoaded', setupCustodianColorFields);
+
+        function updateClock() {
+            const now = new Date();
+            const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+            const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+            
+            const dayName = days[now.getDay()];
+            const dateNum = String(now.getDate()).padStart(2, '0');
+            const monthName = months[now.getMonth()];
+            const year = now.getFullYear();
+
+            const dateStr = `${dayName}, ${dateNum}-${monthName}-${year}`;
+            const timeStr = now.toLocaleTimeString('en-US', { hour12: true, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+
+            const dateEl = document.getElementById('liveFullDateDisplay');
+            const timeEl = document.getElementById('liveFullTimeDisplay');
+            if (dateEl) dateEl.textContent = dateStr;
+            if (timeEl) timeEl.textContent = timeStr;
+        }
+        setInterval(updateClock, 1000);
+        updateClock();
+
+        setTimeout(() => {
+            const toasts = document.querySelectorAll('.toast-item');
+            toasts.forEach(t => {
+                t.style.opacity = '0';
+                t.style.transform = 'translateY(-10px)';
+                setTimeout(() => t.remove(), 300);
+            });
+        }, 4500);
+
+        // Initialize searchable dropdowns only where needed.
+        document.addEventListener("DOMContentLoaded", function() {
+            const searchableEls = document.querySelectorAll('.searchable-select');
+            if (!searchableEls.length || typeof TomSelect === 'undefined') return;
+            const escapeSelectText = function(value) {
+                return String(value == null ? '' : value)
+                    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+                    .replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+            };
+            const renderColoredSelectData = function(data) {
+                const original = String(data.text || '').trim();
+                if (!original || original.startsWith('--')) return '<span class="text-slate-500">' + escapeSelectText(original) + '</span>';
+                const parts = original.split(/\s+—\s+/);
+                if (parts.length < 2) return '<span class="select-name">' + escapeSelectText(original) + '</span>';
+                const code = parts.shift();
+                const remainder = parts.join(' — ');
+                const detailMatch = remainder.match(/^(.*?)(\s*\([^)]*\))$/);
+                const name = detailMatch ? detailMatch[1] : remainder;
+                const detail = detailMatch ? detailMatch[2] : '';
+                return '<span class="select-colored-row"><span class="select-code">' + escapeSelectText(code) + '</span>' +
+                    '<span class="text-slate-400 mx-1.5">—</span>' +
+                    '<span class="select-name">' + escapeSelectText(name) + '</span>' +
+                    (detail ? '<span class="select-detail ml-1">' + escapeSelectText(detail) + '</span>' : '') + '</span>';
+            };
+            const searchableInstances = [];
+            searchableEls.forEach(function(el) {
+                // Native HTML validation tries to focus TomSelect's hidden original <select>.
+                // In Chromium/Edge app mode that can horizontally scroll the whole ERP workspace,
+                // visually hiding the sidebar. Keep validation on the visible TomSelect control instead.
+                const wasRequired = el.required;
+                if (wasRequired) {
+                    el.dataset.searchRequired = '1';
+                    el.required = false;
+                }
+                const instance = new TomSelect(el, {
+                    create: false,
+                    sortField: { field: "text", direction: "asc" },
+                    render: {
+                        option: renderColoredSelectData,
+                        item: renderColoredSelectData
+                    },
+                    onFocus: function() {
+                        searchableInstances.forEach(item => { if (item !== this) item.close(); });
+                    },
+                    onChange: function() {
+                        if (this.wrapper) this.wrapper.classList.remove('ts-validation-error');
+                        this.close();
+                        this.blur();
+                    }
+                });
+                instance._kensovaRequired = wasRequired;
+                searchableInstances.push(instance);
+            });
+
+            // Validate required searchable fields without letting the browser focus the hidden select.
+            const searchableForms = new Set(Array.from(searchableEls).map(el => el.form).filter(Boolean));
+            searchableForms.forEach(function(form) {
+                form.addEventListener('submit', function(event) {
+                    const requiredInstances = searchableInstances.filter(inst => inst.input && inst.input.form === form && inst._kensovaRequired);
+                    const missing = requiredInstances.find(inst => !String(inst.getValue() || '').trim());
+                    if (!missing) return;
+                    event.preventDefault();
+                    if (missing.wrapper) missing.wrapper.classList.add('ts-validation-error');
+                    missing.open();
+                    requestAnimationFrame(function() {
+                        if (missing.control_input) missing.control_input.focus({preventScroll:true});
+                    });
+                }, true);
+            });
+
+            document.addEventListener('pointerdown', function(event) {
+                if (!event.target.closest('.ts-wrapper, .ts-dropdown')) {
+                    searchableInstances.forEach(item => item.close());
+                }
+            });
+        });
+
+        function exportReportToPDF(title, tableId) {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF('l', 'mm', 'a4');
+
+            doc.setFillColor(12, 74, 110);
+            doc.rect(0, 0, 297, 24, 'F');
+            doc.setTextColor(255, 255, 255);
+            doc.setFontSize(16);
+            doc.setFont('helvetica', 'bold');
+            doc.text('KENSOVA INTERIORS — OPERATIONS & AUDIT REPORT', 14, 12);
+            
+            doc.setFontSize(10);
+            doc.setFont('helvetica', 'normal');
+            doc.text(`Report: ${title.toUpperCase()} | Generated: ${new Date().toLocaleString()}`, 14, 19);
+
+            doc.autoTable({
+                html: '#' + tableId,
+                startY: 30,
+                theme: 'grid',
+                styles: { fontSize: 8.5, font: 'helvetica', cellPadding: 3.5, textColor: [15, 23, 42] },
+                headStyles: { fillColor: [186, 230, 253], textColor: [12, 74, 110], fontStyle: 'bold' },
+                alternateRowStyles: { fillColor: [248, 250, 252] },
+                margin: { top: 30, left: 14, right: 14 },
+                didDrawPage: function(data) {
+                    doc.setFontSize(8);
+                    doc.setTextColor(100, 116, 139);
+                    doc.text(`Page ${doc.internal.getNumberOfPages()} — Location: F20 Central Store Dubai`, 14, 205);
+                }
+            });
+
+            doc.save(`Kensova_Report_${title.replace(/\s+/g, '_')}_${new Date().toISOString().slice(0, 10)}.pdf`);
+        }
+        function getCsrfToken(){const m=document.cookie.match(/(?:^|; )csrftoken=([^;]+)/);return m?decodeURIComponent(m[1]):'';}
+        document.addEventListener('DOMContentLoaded', function(){
+          const fab=document.getElementById('askAiFab'), panel=document.getElementById('askAiPanel'); if(!fab||!panel) return;
+          const history=document.getElementById('askAiHistory'), input=document.getElementById('askAiInput'), status=document.getElementById('askAiStatus'), send=document.getElementById('askAiSend');
+          const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
+          function addMsg(role,content){const d=document.createElement('div');d.className='ask-ai-msg '+(role==='user'?'ask-ai-user':'ask-ai-assistant');d.innerHTML=esc(content).replace(/\n/g,'<br>');history.appendChild(d);history.scrollTop=history.scrollHeight;}
+          async function loadHistory(){try{const r=await fetch('{% url "ai_history" %}',{credentials:'same-origin'});const j=await r.json();history.innerHTML='';(j.messages||[]).forEach(m=>addMsg(m.role,m.content));}catch(e){status.textContent='Could not load saved history.'}}
+          fab.onclick=()=>{panel.classList.toggle('hidden');if(!panel.classList.contains('hidden')){loadHistory();setTimeout(()=>input.focus(),50)}};
+          document.getElementById('askAiClose').onclick=()=>panel.classList.add('hidden');
+          document.getElementById('askAiPaste').onclick=async()=>{try{input.value=await navigator.clipboard.readText();input.focus()}catch(e){status.textContent='Clipboard permission was blocked; paste with Ctrl+V.'}};
+          async function submit(action='chat'){const content=input.value.trim();if(!content)return;send.disabled=true;status.textContent='Thinking…';addMsg('user',content);input.value='';try{const r=await fetch('{% url "ai_chat" %}',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json','X-CSRFToken':getCsrfToken()},body:JSON.stringify({message:content,action})});const j=await r.json();if(!r.ok)throw new Error(j.error||'AI request failed');addMsg('assistant',j.reply);status.textContent='Saved to chat history.'}catch(e){addMsg('assistant','Error: '+e.message);status.textContent='Request failed.'}finally{send.disabled=false;input.focus()}}
+          send.onclick=()=>submit('chat');document.querySelectorAll('[data-ai-action]').forEach(b=>b.onclick=()=>submit(b.dataset.aiAction));input.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();submit('chat')}});
+        });
+
+    </script>
+</body>
+</html>
