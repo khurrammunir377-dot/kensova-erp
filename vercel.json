@@ -1,0 +1,14 @@
+{
+  "builds": [
+    {
+      "src": "kensova_core/wsgi.py",
+      "use": "@vercel/python"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "kensova_core/wsgi.py"
+    }
+  ]
+}
