@@ -5,16 +5,19 @@ from django.core.management.utils import get_random_secret_key
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# SECRET_KEY is generated once on first run and stored in a local file that
-# is never shipped/shared with the project (unlike a hardcoded key in this
-# .py file, which would let anyone who has this folder forge session
-# cookies). Delete the file to rotate the key (this logs everyone out).
-_secret_key_file = BASE_DIR / '.secret_key'
-if _secret_key_file.exists():
-    SECRET_KEY = _secret_key_file.read_text().strip()
-else:
-    SECRET_KEY = get_random_secret_key()
-    _secret_key_file.write_text(SECRET_KEY)
+# SECRET_KEY comes from an environment variable in production (set this in
+# Vercel: Project Settings -> Environment Variables -> SECRET_KEY). Vercel's
+# filesystem is read-only outside /tmp, so writing a local .secret_key file
+# (the old approach) will crash on every deploy. The file-based fallback
+# below is kept only for local development on this PC.
+SECRET_KEY = os.environ.get('SECRET_KEY')
+if not SECRET_KEY:
+    _secret_key_file = BASE_DIR / '.secret_key'
+    if _secret_key_file.exists():
+        SECRET_KEY = _secret_key_file.read_text().strip()
+    else:
+        SECRET_KEY = get_random_secret_key()
+        _secret_key_file.write_text(SECRET_KEY)
 
 # Was True - left the app leaking full stack traces, settings, and source
 # paths to anyone who could reach an error page (and since the server binds
@@ -40,6 +43,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -89,10 +93,11 @@ USE_I18N = True
 USE_TZ = True
 STATIC_URL = '/static/'
 # Needed now that DEBUG=False - runserver only auto-serves static files via
-# the app-static-folder finder when DEBUG=True. collectstatic (run by the
-# launcher .bat each start) copies everything here, and urls.py serves this
-# folder directly so styling/scripts keep working with DEBUG off.
+# the app-static-folder finder when DEBUG=True. collectstatic (run at build
+# time) copies everything here, and WhiteNoise serves this folder directly
+# so styling/scripts keep working with DEBUG off.
 STATIC_ROOT = BASE_DIR / 'staticfiles'
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 LOGIN_URL = 'login'
 LOGIN_REDIRECT_URL = 'dashboard'

@@ -49,3 +49,5 @@ deployment-backup/
 api.txt
 
 api.txt
+.vercel
+.env*
